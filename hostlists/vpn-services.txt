@@ -1,0 +1,33 @@
+# NordVPN
+nordvpn.com
+nordcdn.com
+nordaccount.com
+nordsec.com
+nordvpnmedia.com
+
+# ProtonVPN
+proton.me
+protonvpn.com
+protonapps.com
+
+# Red Shield VPN
+redshieldvpn.com
+redshieldvpn.one
+
+# Planet VPN
+freevpnplanet.com
+planetvpn.com
+
+# HideMy.name VPN
+hidemy.name
+
+# Le VPN
+le-vpn.com
+
+# Private Internet Access
+privateinternetaccess.com
+piavpn.com
+pia-service.com
+
+# Bright VPN
+brightvpn.com

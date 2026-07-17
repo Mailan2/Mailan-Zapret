@@ -1,0 +1,14 @@
+# OpenAI
+openai.com
+api.openai.com
+auth.openai.com
+auth0.openai.com
+platform.openai.com
+
+# ChatGPT
+chatgpt.com
+ab.chatgpt.com
+
+# Static assets and user content
+oaistatic.com
+oaiusercontent.com

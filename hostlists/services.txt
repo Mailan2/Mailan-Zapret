@@ -1,0 +1,52 @@
+# WhatsApp
+whatsapp.com
+whatsapp.net
+wa.me
+
+# BBC
+bbc.com
+bbc.co.uk
+bbci.co.uk
+bbc.in
+
+# Deutsche Welle
+dw.com
+dwcdn.net
+
+# Independent news
+svoboda.org
+rferl.org
+themoscowtimes.com
+currenttime.tv
+
+# Privacy tools
+windscribe.com
+windscribe.net
+windscribe.io
+wsstatic.net
+proton.me
+protonmail.com
+protonvpn.com
+protonapps.com
+protonstatus.com
+torproject.org
+torproject.net
+
+# Instagram
+instagram.com
+cdninstagram.com
+
+# APKMirror
+apkmirror.com
+apkmirror.net
+
+# Google
+google.com
+google.ru
+googleapis.com
+gstatic.com
+googleusercontent.com
+ggpht.com
+gmail.com
+googledrive.com
+withgoogle.com

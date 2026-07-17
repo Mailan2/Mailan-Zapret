@@ -1,0 +1,187 @@
+{
+  "binary": "bin\\winws.exe",
+  "base_args": [
+    "--wf-tcp=80,443,5222,5223",
+    "--wf-udp=443",
+    "--wf-raw-part=@windivert_part.discord_media.txt",
+    "--wf-raw-part=@windivert_part.stun.txt",
+    "--wf-raw-part=@windivert_part.wireguard.txt",
+    "--wf-raw-part=@windivert_part.quic_initial_ietf.txt"
+  ],
+  "hostlists": [
+    "hostlists\\youtube.txt",
+    "hostlists\\discord.txt",
+    "hostlists\\facebook.txt",
+    "hostlists\\telegram.txt",
+    "hostlists\\services.txt",
+    "hostlists\\openai.txt",
+    "hostlists\\global-platforms.txt",
+    "hostlists\\vpn-services.txt"
+  ],
+  "excluded_hostlists": [],
+  "excluded_ipsets": [
+    "bin\\telegram-cidr.txt"
+  ],
+  "prefer_ipv4_while_running": true,
+  "tail_segments": [
+    {
+      "args": [
+        "--filter-tcp=80,443,5222,5223",
+        "--ipset=telegram-cidr.txt",
+        "--dpi-desync=fake,multisplit",
+        "--dpi-desync-split-pos=2",
+        "--dpi-desync-repeats=6",
+        "--dpi-desync-fooling=badseq"
+      ]
+    },
+    {
+      "args": [
+        "--filter-l7=wireguard,stun,discord",
+        "--dpi-desync=fake",
+        "--dpi-desync-repeats=2"
+      ]
+    }
+  ],
+  "profiles": {
+    "safe": {
+      "description": "Hostlist only; try this first.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "official": {
+      "description": "Full official v72.12 preset with fallback profiles.",
+      "segments": [
+        {
+          "hostlists": [],
+          "args": [
+            "--filter-tcp=80",
+            "--dpi-desync=fake,fakedsplit",
+            "--dpi-desync-autottl=2",
+            "--dpi-desync-fooling=md5sig"
+          ]
+        },
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multidisorder",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fooling=md5sig",
+            "--dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com"
+          ]
+        },
+        {
+          "hostlists": [],
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multidisorder",
+            "--dpi-desync-split-pos=midsld",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=badseq,md5sig"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        },
+        {
+          "hostlists": [],
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=11"
+          ]
+        }
+      ]
+    },
+    "multisplit": {
+      "description": "TLS multisplit with stronger repeats.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fooling=badseq,md5sig",
+            "--dpi-desync-fake-tls-mod=rnd,dupsid,sni=www.google.com"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "multidisorder": {
+      "description": "TLS packets sent in a changed order.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multidisorder",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fooling=badseq,md5sig"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=11",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "fakedsplit": {
+      "description": "Fake TLS split; useful on some providers.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,fakedsplit",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-autottl=2",
+            "--dpi-desync-fooling=md5sig"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    }
+  }
+}

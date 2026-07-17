@@ -1,0 +1,31 @@
+# Cloudflare
+cloudflare.com
+cloudflareinsights.com
+cloudflareclient.com
+cloudflare-dns.com
+one.one.one.one
+
+# Claude and Anthropic
+claude.com
+claude.ai
+claudeusercontent.com
+anthropic.com
+anthropic-static.com
+
+# TikTok and media delivery
+tiktok.com
+tiktokcdn.com
+tiktokv.com
+byteoversea.com
+ibytedtos.com
+musical.ly
+
+# Netflix and Open Connect delivery
+netflix.com
+netflix.net
+nflxext.com
+nflximg.com
+nflximg.net
+nflxso.net
+nflxvideo.net
+nflxsearch.net

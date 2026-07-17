@@ -1,0 +1,25 @@
+{
+  "links": [
+    { "name": "Instagram", "url": "https://www.instagram.com/" },
+    { "name": "Facebook", "url": "https://www.facebook.com/" },
+    { "name": "Telegram Web", "url": "https://web.telegram.org/" },
+    { "name": "WhatsApp", "url": "https://www.whatsapp.com/" },
+    { "name": "BBC", "url": "https://www.bbc.com/" },
+    { "name": "Deutsche Welle", "url": "https://www.dw.com/" },
+    { "name": "Radio Svoboda", "url": "https://www.svoboda.org/" },
+    { "name": "The Moscow Times", "url": "https://www.themoscowtimes.com/" },
+    { "name": "Current Time", "url": "https://www.currenttime.tv/" },
+    { "name": "Windscribe", "url": "https://windscribe.com/" },
+    { "name": "Proton VPN", "url": "https://protonvpn.com/" },
+    { "name": "Tor Project", "url": "https://www.torproject.org/" },
+    { "name": "NordVPN", "url": "https://nordvpn.com/" },
+    { "name": "Red Shield VPN", "url": "https://redshieldvpn.com/" },
+    { "name": "Planet VPN", "url": "https://freevpnplanet.com/" },
+    { "name": "HideMy.name VPN", "url": "https://hidemy.name/" },
+    { "name": "Le VPN", "url": "https://www.le-vpn.com/" },
+    { "name": "Private Internet Access", "url": "https://www.privateinternetaccess.com/" },
+    { "name": "Bright VPN", "url": "https://brightvpn.com/" },
+    { "name": "APKMirror", "url": "https://www.apkmirror.com/" },
+    { "name": "Google", "url": "https://www.google.com/" }
+  ]
+}
