@@ -1,4 +1,5 @@
 {
+  "enabled": false,
   "listener_port": 17891,
   "domains": [
     "pornhub.com",

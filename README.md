@@ -51,6 +51,8 @@ You can also run commands manually from PowerShell or Command Prompt:
 .\mailan-zapret.cmd doctor
 .\mailan-zapret.cmd bootstrap
 .\mailan-zapret.cmd proxy-setup
+.\mailan-zapret.cmd proxy-enable
+.\mailan-zapret.cmd proxy-disable
 .\mailan-zapret.cmd proxy-status
 .\mailan-zapret.cmd proxy-stop
 .\mailan-zapret.cmd args -Profile safe
@@ -78,10 +80,13 @@ background and stores a PID in `runtime\`.
 ## Kazakhstan site proxy
 
 `proxy-setup` creates a local, user-encrypted SOCKS5 configuration for the
-Kazakhstan site proxy. It never stores credentials in tracked files or update
-archives. While Zapret is running, system-proxy browsers use a local PAC rule
-that routes only Pornhub, its `phncdn.com` content domains, and Tor Project
-through `127.0.0.1`. All other traffic remains direct.
+Kazakhstan site proxy. It is disabled by default and is not needed for users in
+Russia. It never stores credentials in tracked files or update archives. A
+Kazakhstan user can enable it with `proxy-enable`; while Zapret is running,
+system-proxy browsers then use a local PAC rule that routes only Pornhub, its
+`phncdn.com` content domains, and Tor Project through `127.0.0.1`. All other
+traffic remains direct. `proxy-disable` turns this optional feature off and
+stops an already running Kazakhstan gateway.
 
 The local gateway accepts traffic only on `127.0.0.1` and only for those three
 domain families. It is stopped and the previous Windows proxy setting is

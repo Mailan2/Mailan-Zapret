@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("menu", "blockcheck", "bootstrap", "proxy-setup", "proxy-status", "proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
+    [ValidateSet("menu", "blockcheck", "bootstrap", "proxy-setup", "proxy-enable", "proxy-disable", "proxy-status", "proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
     [string]$Command = "console",
 
     [string]$Profile = "safe",
@@ -77,7 +77,19 @@ function Get-KazakhstanProxyConfigPath {
 }
 
 function Test-KazakhstanProxyConfigured {
-    return (Test-Path -LiteralPath (Get-KazakhstanProxyConfigPath))
+    $configPath = Get-KazakhstanProxyConfigPath
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        return $false
+    }
+
+    try {
+        $configuration = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $enabledProperty = $configuration.PSObject.Properties["enabled"]
+        return ($enabledProperty -and [bool]$enabledProperty.Value)
+    }
+    catch {
+        return $false
+    }
 }
 
 function Test-LocalTcpPort {
@@ -126,7 +138,6 @@ function Start-KazakhstanProxyGateway {
     $gatewayProcess = Start-Process -FilePath "powershell.exe" -ArgumentList $argumentLine -WindowStyle Hidden -PassThru
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         if (Test-LocalTcpPort -Port 17891) {
-            Write-Host "Kazakhstan site proxy enabled for Pornhub and Tor Project." -ForegroundColor Green
             return $gatewayProcess
         }
         if ($gatewayProcess.HasExited) {
@@ -142,7 +153,7 @@ function Start-KazakhstanProxyGateway {
 }
 
 function Invoke-KazakhstanProxyCommand {
-    param([Parameter(Mandatory)][ValidateSet("setup", "status", "stop")][string]$ProxyCommand)
+    param([Parameter(Mandatory)][ValidateSet("setup", "enable", "disable", "status", "stop")][string]$ProxyCommand)
 
     $proxyScript = Join-Path $Root "scripts\kazakhstan-proxy.ps1"
     if (-not (Test-Path -LiteralPath $proxyScript)) {
@@ -839,6 +850,12 @@ try {
         }
         "proxy-setup" {
             Invoke-KazakhstanProxyCommand -ProxyCommand "setup"
+        }
+        "proxy-enable" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "enable"
+        }
+        "proxy-disable" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "disable"
         }
         "proxy-status" {
             Invoke-KazakhstanProxyCommand -ProxyCommand "status"

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("setup", "serve", "stop", "status")]
+    [ValidateSet("setup", "enable", "disable", "serve", "stop", "status")]
     [string]$Command = "status",
 
     [int]$ParentPid = 0
@@ -215,13 +215,39 @@ function Start-KazakhstanProxySetup {
     }
 
     $configuration = [pscustomobject]@{
+        enabled = $false
         listener_port = 17891
         domains = $AllowedDomains
         proxies = $proxies.ToArray()
     }
     Write-Utf8Json -Path $ConfigPath -Value $configuration
     Write-Host "Saved local Kazakhstan proxy configuration." -ForegroundColor Green
-    Write-Host "Start Mailan Zapret normally. The proxy will be enabled only while Zapret runs."
+    Write-Host "The Kazakhstan proxy is disabled by default. Enable it only on a Kazakhstan connection with: .\mailan-zapret.cmd proxy-enable"
+}
+
+function Set-KazakhstanProxyEnabled {
+    param([Parameter(Mandatory)][bool]$Enabled)
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        throw "Kazakhstan proxy is not configured. Run: .\mailan-zapret.cmd proxy-setup"
+    }
+    $runningState = Get-ExistingState
+    if ($Enabled -and $runningState) {
+        throw "Stop the running Kazakhstan proxy before changing its enabled state."
+    }
+    if (-not $Enabled -and $runningState) {
+        Stop-KazakhstanProxyServer
+    }
+
+    $configuration = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+    $configuration | Add-Member -MemberType NoteProperty -Name "enabled" -Value $Enabled -Force
+    Write-Utf8Json -Path $ConfigPath -Value $configuration
+    if ($Enabled) {
+        Write-Host "Kazakhstan proxy enabled for the next Zapret start."
+    }
+    else {
+        Write-Host "Kazakhstan proxy disabled."
+    }
 }
 
 function Start-KazakhstanProxyServer {
@@ -319,6 +345,8 @@ function Show-KazakhstanProxyStatus {
 
 switch ($Command) {
     "setup" { Start-KazakhstanProxySetup }
+    "enable" { Set-KazakhstanProxyEnabled -Enabled $true }
+    "disable" { Set-KazakhstanProxyEnabled -Enabled $false }
     "serve" {
         if ($ParentPid -le 0) { $ParentPid = $PID }
         Start-KazakhstanProxyServer -WatchedPid $ParentPid
