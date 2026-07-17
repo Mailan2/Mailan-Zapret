@@ -42,6 +42,10 @@ apkmirror.net
 
 # Pornhub
 pornhub.com
+www.pornhub.com
+ww.pornhub.com
+rt.pornhub.com
+phncdn.com
 
 # Google
 google.com
