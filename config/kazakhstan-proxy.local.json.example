@@ -1,0 +1,16 @@
+{
+  "listener_port": 17891,
+  "domains": [
+    "pornhub.com",
+    "phncdn.com",
+    "torproject.org"
+  ],
+  "proxies": [
+    {
+      "host": "proxy.example",
+      "port": 1080,
+      "username": "your_username",
+      "password_protected": "created by proxy-setup"
+    }
+  ]
+}

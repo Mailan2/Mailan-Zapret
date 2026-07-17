@@ -32,6 +32,7 @@ $stagingPath = Join-Path $RuntimeDirectory "publish-stage-$token"
 $temporaryArchivePath = Join-Path $RuntimeDirectory "publish-$token.zip"
 $fileName = "mailan-zapret-$Version.zip"
 $archivePath = Join-Path $OutputDirectory $fileName
+$checksumPath = Join-Path $OutputDirectory "$fileName.sha256"
 $manifestPath = Join-Path $OutputDirectory "update.json"
 $temporaryManifestPath = Join-Path $OutputDirectory "update-$token.json"
 
@@ -54,9 +55,11 @@ try {
         Copy-Item -LiteralPath $item.FullName -Destination $stagingPath -Recurse -Force
     }
 
-    $localConfigCopy = Join-Path $stagingPath "config\version.local.json"
-    if (Test-Path -LiteralPath $localConfigCopy) {
-        Remove-Item -LiteralPath $localConfigCopy -Force
+    foreach ($localConfigName in @("version.local.json", "kazakhstan-proxy.local.json")) {
+        $localConfigCopy = Join-Path $stagingPath (Join-Path "config" $localConfigName)
+        if (Test-Path -LiteralPath $localConfigCopy) {
+            Remove-Item -LiteralPath $localConfigCopy -Force
+        }
     }
 
     $packagedVersionPath = Join-Path $stagingPath "config\version.json"
@@ -76,6 +79,7 @@ try {
 
     $hash = (Get-FileHash -LiteralPath $temporaryArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
     Move-Item -LiteralPath $temporaryArchivePath -Destination $archivePath -Force
+    [IO.File]::WriteAllText($checksumPath, "$hash  $fileName`n", $Utf8NoBom)
 
     $manifestJson = [pscustomobject]@{
         version = $Version

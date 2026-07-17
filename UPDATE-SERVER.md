@@ -30,6 +30,19 @@ Place that 64-character value in `update.json`, upload the ZIP, and then upload
 the manifest last. Clients download only after asking the user and install only
 when the archive hash and embedded version both match.
 
+## GitHub Releases
+
+The launcher also checks the latest stable release at
+`https://github.com/Mailan2/Mailan-Zapret/releases`. Create a tag in the form
+`v1.0.4`, then attach both files produced by `publish-update.ps1`:
+
+- `mailan-zapret-1.0.4.zip`
+- `mailan-zapret-1.0.4.zip.sha256`
+
+The ZIP name must match the numeric tag version. The updater checks the SHA-256
+value before installation and ignores prereleases. Upload the checksum asset
+with the archive; a release without one is never offered for installation.
+
 ## Publish an update
 
 Build the archive and manifest for the local development site:

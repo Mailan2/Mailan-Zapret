@@ -95,6 +95,74 @@ function Get-UpdateManifest {
         -Headers @{ "Cache-Control" = "no-cache"; "User-Agent" = "Mailan-Zapret-Updater/1" }
 }
 
+function Get-GitHubReleaseManifest {
+    param([Parameter(Mandatory)]$VersionConfig)
+
+    $apiUrlProperty = $VersionConfig.PSObject.Properties["github_release_api_url"]
+    if (-not $apiUrlProperty -or [string]::IsNullOrWhiteSpace([string]$apiUrlProperty.Value)) {
+        return $null
+    }
+
+    $apiHosts = @($VersionConfig.github_release_api_hosts | ForEach-Object { ([string]$_).ToLowerInvariant() })
+    $downloadHosts = @($VersionConfig.github_release_download_hosts | ForEach-Object { ([string]$_).ToLowerInvariant() })
+    if ($apiHosts.Count -eq 0 -or $downloadHosts.Count -eq 0) {
+        throw "GitHub update host allowlists cannot be empty."
+    }
+
+    $apiUri = Assert-AllowedUpdateUrl -Url ([string]$apiUrlProperty.Value) `
+        -AllowedHosts $apiHosts -Name "GitHub release API URL"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $release = Invoke-RestMethod -Uri $apiUri.AbsoluteUri -Method Get -TimeoutSec 5 `
+        -Headers @{ "Accept" = "application/vnd.github+json"; "User-Agent" = "Mailan-Zapret-Updater/1" }
+    if ($release.prerelease) {
+        return $null
+    }
+
+    $tag = ([string]$release.tag_name).Trim()
+    if ($tag -match '^(?i:v)(?=\d)') {
+        $tag = $tag.Substring(1)
+    }
+    $version = ConvertTo-MailanVersion -Value $tag -FieldName "GitHub release tag"
+    $archiveName = "mailan-zapret-$version.zip"
+    $archiveAsset = @($release.assets | Where-Object { [string]$_.name -eq $archiveName } | Select-Object -First 1)
+    if ($archiveAsset.Count -ne 1) {
+        throw "GitHub release $tag does not contain $archiveName."
+    }
+
+    $archiveUrl = [string]$archiveAsset[0].browser_download_url
+    [void](Assert-AllowedUpdateUrl -Url $archiveUrl -AllowedHosts $downloadHosts `
+        -Name "GitHub release archive URL")
+    $digest = ([string]$archiveAsset[0].digest).Trim().ToLowerInvariant()
+    $sha256 = $null
+    if ($digest -match '^sha256:([0-9a-f]{64})$') {
+        $sha256 = $Matches[1]
+    }
+    else {
+        $checksumName = "$archiveName.sha256"
+        $checksumAsset = @($release.assets | Where-Object { [string]$_.name -eq $checksumName } | Select-Object -First 1)
+        if ($checksumAsset.Count -ne 1) {
+            throw "GitHub release $tag needs $checksumName or a GitHub SHA-256 asset digest."
+        }
+        $checksumUrl = [string]$checksumAsset[0].browser_download_url
+        $checksumUri = Assert-AllowedUpdateUrl -Url $checksumUrl -AllowedHosts $downloadHosts `
+            -Name "GitHub release checksum URL"
+        $checksumResponse = Invoke-WebRequest -Uri $checksumUri.AbsoluteUri -UseBasicParsing -TimeoutSec 20 `
+            -Headers @{ "User-Agent" = "Mailan-Zapret-Updater/1" }
+        $checksumMatch = [regex]::Match([string]$checksumResponse.Content, '(?im)\b([0-9a-f]{64})\b')
+        if (-not $checksumMatch.Success) {
+            throw "GitHub release checksum file does not contain a SHA-256 value."
+        }
+        $sha256 = $checksumMatch.Groups[1].Value.ToLowerInvariant()
+    }
+
+    return [pscustomobject]@{
+        version = $version.ToString()
+        url = $archiveUrl
+        sha256 = $sha256
+        notes = "GitHub release $tag. " + ([string]$release.body).Trim()
+    }
+}
+
 function Get-RequiredManifestValue {
     param(
         [Parameter(Mandatory)]$Manifest,
@@ -246,12 +314,56 @@ try {
     $allowHttpLoopbackProperty = $versionConfig.PSObject.Properties["allow_http_loopback"]
     $allowHttpLoopback = $allowHttpLoopbackProperty -and [bool]$allowHttpLoopbackProperty.Value
     $localVersion = ConvertTo-MailanVersion -Value ([string]$versionConfig.version) -FieldName "local"
-    $manifest = Get-UpdateManifest -VersionConfig $versionConfig -AllowedHosts $allowedHosts `
-        -AllowHttpLoopback $allowHttpLoopback
-    $remoteVersionText = Get-RequiredManifestValue -Manifest $manifest -Name "version"
-    $remoteVersion = ConvertTo-MailanVersion -Value $remoteVersionText -FieldName "remote"
+    $candidates = New-Object System.Collections.Generic.List[object]
+    $sourceErrors = New-Object System.Collections.Generic.List[string]
+    try {
+        $siteManifest = Get-UpdateManifest -VersionConfig $versionConfig -AllowedHosts $allowedHosts `
+            -AllowHttpLoopback $allowHttpLoopback
+        $candidates.Add([pscustomobject]@{
+            source = "Mailan1.ru"
+            manifest = $siteManifest
+            allowed_hosts = $allowedHosts
+            allow_http_loopback = $allowHttpLoopback
+        })
+    }
+    catch {
+        $sourceErrors.Add("Mailan1.ru: $($_.Exception.Message)")
+    }
 
-    if ($remoteVersion -le $localVersion) {
+    if (-not $ManifestFile) {
+        try {
+            $githubManifest = Get-GitHubReleaseManifest -VersionConfig $versionConfig
+            if ($githubManifest) {
+                $githubHosts = @($versionConfig.github_release_download_hosts | ForEach-Object { ([string]$_).ToLowerInvariant() })
+                $candidates.Add([pscustomobject]@{
+                    source = "GitHub Releases"
+                    manifest = $githubManifest
+                    allowed_hosts = $githubHosts
+                    allow_http_loopback = $false
+                })
+            }
+        }
+        catch {
+            $sourceErrors.Add("GitHub Releases: $($_.Exception.Message)")
+        }
+    }
+
+    if ($candidates.Count -eq 0) {
+        throw "No update source is available. $($sourceErrors -join ' | ')"
+    }
+
+    $selected = $null
+    $remoteVersion = $null
+    foreach ($candidate in $candidates) {
+        $candidateVersionText = Get-RequiredManifestValue -Manifest $candidate.manifest -Name "version"
+        $candidateVersion = ConvertTo-MailanVersion -Value $candidateVersionText -FieldName "$($candidate.source) remote"
+        if ($candidateVersion -gt $localVersion -and ($null -eq $remoteVersion -or $candidateVersion -gt $remoteVersion)) {
+            $selected = $candidate
+            $remoteVersion = $candidateVersion
+        }
+    }
+
+    if ($null -eq $selected) {
         if ($ShowErrors) {
             Write-Host "Mailan Zapret is up to date: $localVersion"
         }
@@ -260,7 +372,8 @@ try {
 
     Write-Host ""
     Write-Host "Mailan Zapret update available: $localVersion -> $remoteVersion" -ForegroundColor Cyan
-    $notesProperty = $manifest.PSObject.Properties["notes"]
+    Write-Host "Source: $($selected.source)"
+    $notesProperty = $selected.manifest.PSObject.Properties["notes"]
     if ($notesProperty -and $notesProperty.Value) {
         $notes = ([string]$notesProperty.Value).Trim()
         if ($notes.Length -gt 500) { $notes = $notes.Substring(0, 500) + "..." }
@@ -277,9 +390,9 @@ try {
     }
 
     $UpdateWasAccepted = $true
-    Start-MailanUpdate -VersionConfig $versionConfig -Manifest $manifest `
-        -RemoteVersion $remoteVersion -AllowedHosts $allowedHosts `
-        -AllowHttpLoopback $allowHttpLoopback
+    Start-MailanUpdate -VersionConfig $versionConfig -Manifest $selected.manifest `
+        -RemoteVersion $remoteVersion -AllowedHosts $selected.allowed_hosts `
+        -AllowHttpLoopback ([bool]$selected.allow_http_loopback)
     exit 10
 }
 catch {

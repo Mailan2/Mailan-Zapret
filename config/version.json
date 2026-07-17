@@ -1,9 +1,18 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.4",
   "manifest_url": "https://mailan1.ru/zapret/update.json",
   "allowed_download_hosts": [
     "mailan1.ru",
     "www.mailan1.ru"
+  ],
+  "github_release_api_url": "https://api.github.com/repos/Mailan2/Mailan-Zapret/releases/latest",
+  "github_release_api_hosts": [
+    "api.github.com"
+  ],
+  "github_release_download_hosts": [
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com"
   ],
   "max_archive_mb": 200
 }

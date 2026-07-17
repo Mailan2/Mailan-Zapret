@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("menu", "blockcheck", "bootstrap", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
+    [ValidateSet("menu", "blockcheck", "bootstrap", "proxy-setup", "proxy-status", "proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
     [string]$Command = "console",
 
     [string]$Profile = "safe",
@@ -70,6 +70,89 @@ function Get-IPv4PolicyStateFile {
     }
 
     return (Join-Path $runtimeDir "ipv4-prefix-policy.json")
+}
+
+function Get-KazakhstanProxyConfigPath {
+    return (Join-Path $Root "config\kazakhstan-proxy.local.json")
+}
+
+function Test-KazakhstanProxyConfigured {
+    return (Test-Path -LiteralPath (Get-KazakhstanProxyConfigPath))
+}
+
+function Test-LocalTcpPort {
+    param(
+        [Parameter(Mandatory)][int]$Port,
+        [int]$TimeoutMilliseconds = 400
+    )
+
+    $client = New-Object Net.Sockets.TcpClient
+    try {
+        $result = $client.BeginConnect("127.0.0.1", $Port, $null, $null)
+        if (-not $result.AsyncWaitHandle.WaitOne($TimeoutMilliseconds)) {
+            return $false
+        }
+        $client.EndConnect($result)
+        return $true
+    }
+    catch {
+        return $false
+    }
+    finally {
+        $client.Close()
+    }
+}
+
+function Start-KazakhstanProxyGateway {
+    param([Parameter(Mandatory)][int]$ParentPid)
+
+    if (-not (Test-KazakhstanProxyConfigured)) {
+        return $null
+    }
+
+    $proxyScript = Join-Path $Root "scripts\kazakhstan-proxy.ps1"
+    if (-not (Test-Path -LiteralPath $proxyScript)) {
+        throw "Kazakhstan proxy script not found: $proxyScript"
+    }
+
+    $argumentItems = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $proxyScript,
+        "serve",
+        "-ParentPid", [string]$ParentPid
+    )
+    $argumentLine = ConvertTo-ArgumentLine -Arguments $argumentItems
+    $gatewayProcess = Start-Process -FilePath "powershell.exe" -ArgumentList $argumentLine -WindowStyle Hidden -PassThru
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        if (Test-LocalTcpPort -Port 17891) {
+            Write-Host "Kazakhstan site proxy enabled for Pornhub and Tor Project." -ForegroundColor Green
+            return $gatewayProcess
+        }
+        if ($gatewayProcess.HasExited) {
+            break
+        }
+        Start-Sleep -Milliseconds 200
+    }
+
+    if (-not $gatewayProcess.HasExited) {
+        Stop-Process -Id $gatewayProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+    throw "Kazakhstan site proxy did not start. Run: .\mailan-zapret.cmd proxy-status"
+}
+
+function Invoke-KazakhstanProxyCommand {
+    param([Parameter(Mandatory)][ValidateSet("setup", "status", "stop")][string]$ProxyCommand)
+
+    $proxyScript = Join-Path $Root "scripts\kazakhstan-proxy.ps1"
+    if (-not (Test-Path -LiteralPath $proxyScript)) {
+        throw "Kazakhstan proxy script not found: $proxyScript"
+    }
+
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $proxyScript $ProxyCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Kazakhstan proxy command failed with exit code $LASTEXITCODE."
+    }
 }
 
 function Invoke-MailanUpdateCheck {
@@ -543,6 +626,14 @@ function Start-MailanZapret {
     $workingDirectory = Split-Path -Parent $binary
     $process = Start-Process -FilePath $binary -ArgumentList $argumentLine -WorkingDirectory $workingDirectory -WindowStyle Hidden -PassThru
     Set-Content -LiteralPath $pidFile -Value $process.Id -Encoding ASCII
+    try {
+        [void](Start-KazakhstanProxyGateway -ParentPid $process.Id)
+    }
+    catch {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+        throw
+    }
     Write-Host "Started profile '$Name'. PID: $($process.Id)"
 }
 
@@ -600,9 +691,11 @@ function Start-MailanZapretConsole {
         Write-Host ""
     }
     $process = $null
+    $kazakhstanProxyGateway = $null
     try {
         $process = Start-Process -FilePath $binary -ArgumentList $argumentLine -WorkingDirectory $workingDirectory -NoNewWindow -PassThru
         Set-Content -LiteralPath $pidFile -Value $process.Id -Encoding ASCII
+        $kazakhstanProxyGateway = Start-KazakhstanProxyGateway -ParentPid $process.Id
 
         $watcherScript = Join-Path $Root "scripts\watch-console.ps1"
         if (-not (Test-Path -LiteralPath $watcherScript)) {
@@ -743,6 +836,15 @@ try {
         "bootstrap" {
             $binaryPath = Get-WinwsBinary -Config $config
             Write-Host "Bundled runtime is ready: $binaryPath" -ForegroundColor Green
+        }
+        "proxy-setup" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "setup"
+        }
+        "proxy-status" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "status"
+        }
+        "proxy-stop" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "stop"
         }
         "console" {
             $exitCode = Start-MailanZapretConsole -Config $config -ProfileConfig $profileConfig -Name $Profile

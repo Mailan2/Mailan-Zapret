@@ -50,6 +50,9 @@ You can also run commands manually from PowerShell or Command Prompt:
 ```powershell
 .\mailan-zapret.cmd doctor
 .\mailan-zapret.cmd bootstrap
+.\mailan-zapret.cmd proxy-setup
+.\mailan-zapret.cmd proxy-status
+.\mailan-zapret.cmd proxy-stop
 .\mailan-zapret.cmd args -Profile safe
 .\mailan-zapret.cmd console -Profile safe
 .\mailan-zapret.cmd start -Profile safe
@@ -72,6 +75,20 @@ Restart it with:
 `console` runs winws in the current console window. `start` runs it in the
 background and stores a PID in `runtime\`.
 
+## Kazakhstan site proxy
+
+`proxy-setup` creates a local, user-encrypted SOCKS5 configuration for the
+Kazakhstan site proxy. It never stores credentials in tracked files or update
+archives. While Zapret is running, system-proxy browsers use a local PAC rule
+that routes only Pornhub, its `phncdn.com` content domains, and Tor Project
+through `127.0.0.1`. All other traffic remains direct.
+
+The local gateway accepts traffic only on `127.0.0.1` and only for those three
+domain families. It is stopped and the previous Windows proxy setting is
+restored when Zapret stops. Chrome, Edge and Yandex Browser use this Windows
+PAC rule after a full browser restart. Firefox must be configured to use
+Windows system proxy settings to follow it.
+
 ## Profiles
 
 All profiles include YouTube, Discord, Facebook, Telegram Web and the additional
@@ -83,9 +100,10 @@ While the console is open, Windows temporarily prefers IPv4. This avoids a
 broken IPv6 VPN route preventing Telegram Web from reaching its API servers.
 The original prefix policy is restored when the console exits, including when
 the window is closed. The launcher does not restart or reconfigure VPN adapters,
-and never modifies the Windows HOSTS file or browser settings. If Yandex Browser
-was already open, restart it with `Ctrl+Shift+Q` after starting Zapret so it picks
-up the current VPN route.
+and never modifies the Windows HOSTS file or browser profiles. The optional
+Kazakhstan site proxy temporarily changes only the Windows automatic-proxy URL
+while Zapret is running. If Yandex Browser was already open, restart it with
+`Ctrl+Shift+Q` after starting Zapret so it picks up the current VPN route.
 
 To preview the exact command without starting anything:
 
@@ -98,10 +116,11 @@ stopped. Its report is saved to `vendor\blockcheck\blockcheck.log`.
 
 ## Updates
 
-Normal menu startup checks
-`https://mailan1.ru/zapret/update.json`. Network or server failures do
-not prevent Zapret from starting. The user is prompted only when the manifest
-contains a version newer than `config\version.json`.
+Normal menu startup checks `https://mailan1.ru/zapret/update.json` and the
+latest stable GitHub Release from `Mailan2/Mailan-Zapret`. Network or server
+failures do not prevent Zapret from starting. The user is prompted only when a
+source contains a version newer than `config\version.json`; the newest verified
+release wins.
 
 Accepted updates are downloaded over HTTPS, limited in size, verified against
 the manifest SHA-256 value, safely extracted, and checked for a matching embedded
