@@ -40,6 +40,9 @@ cdninstagram.com
 apkmirror.com
 apkmirror.net
 
+# Pornhub
+pornhub.com
+
 # Google
 google.com
 google.ru
