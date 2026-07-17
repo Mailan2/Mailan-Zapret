@@ -22,7 +22,7 @@
   "excluded_ipsets": [
     "bin\\telegram-cidr.txt"
   ],
-  "prefer_ipv4_while_running": true,
+  "prefer_ipv4_while_running": false,
   "tail_segments": [
     {
       "args": [
@@ -43,8 +43,51 @@
     }
   ],
   "profiles": {
+    "fast": {
+      "description": "Fast default; minimal packet repeats for listed sites.",
+      "prefer_ipv4_while_running": false,
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=2",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=2",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ],
+      "tail_segments": [
+        {
+          "args": [
+            "--filter-tcp=80,443,5222,5223",
+            "--ipset=telegram-cidr.txt",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=2",
+            "--dpi-desync-repeats=2",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=wireguard,stun,discord",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=1"
+          ]
+        }
+      ]
+    },
     "safe": {
-      "description": "Hostlist only; try this first.",
+      "description": "Compatibility profile with stronger repeats.",
+      "prefer_ipv4_while_running": true,
       "segments": [
         {
           "args": [

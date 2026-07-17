@@ -4,7 +4,7 @@ param(
     [ValidateSet("menu", "blockcheck", "bootstrap", "proxy-setup", "proxy-enable", "proxy-disable", "proxy-status", "proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
     [string]$Command = "console",
 
-    [string]$Profile = "safe",
+    [string]$Profile = "fast",
 
     [string]$ConfigPath,
 
@@ -214,9 +214,20 @@ function Restore-TemporaryIPv4Preference {
 }
 
 function Enable-TemporaryIPv4Preference {
-    param([Parameter(Mandatory)]$Config)
+    param(
+        [Parameter(Mandatory)]$Config,
+        $ProfileConfig
+    )
 
-    $setting = $Config.PSObject.Properties["prefer_ipv4_while_running"]
+    $setting = if ($ProfileConfig) {
+        $ProfileConfig.PSObject.Properties["prefer_ipv4_while_running"]
+    }
+    else {
+        $null
+    }
+    if (-not $setting) {
+        $setting = $Config.PSObject.Properties["prefer_ipv4_while_running"]
+    }
     if (-not $setting -or -not [bool]$setting.Value) {
         return $null
     }
@@ -442,7 +453,10 @@ function Get-ProfileArguments {
         }
     }
 
-    $tailSegmentsProperty = $Config.PSObject.Properties["tail_segments"]
+    $tailSegmentsProperty = $ProfileConfig.PSObject.Properties["tail_segments"]
+    if (-not $tailSegmentsProperty) {
+        $tailSegmentsProperty = $Config.PSObject.Properties["tail_segments"]
+    }
     if ($tailSegmentsProperty) {
         foreach ($segment in @($tailSegmentsProperty.Value)) {
             $arguments.Add("--new")
@@ -691,7 +705,7 @@ function Start-MailanZapretConsole {
 
     $argumentLine = ConvertTo-ArgumentLine -Arguments $arguments
     $workingDirectory = Split-Path -Parent $binary
-    $ipv4PolicyState = Enable-TemporaryIPv4Preference -Config $Config
+    $ipv4PolicyState = Enable-TemporaryIPv4Preference -Config $Config -ProfileConfig $ProfileConfig
     if ($ipv4PolicyState) {
         Write-Host "IPv4 is preferred while this console is open (Telegram compatibility)."
     }

@@ -39,7 +39,8 @@ handling.
 2. If this was downloaded from GitHub, the launcher restores its bundled winws and
    WinDivert files automatically on the first run.
 3. The launcher checks `Mailan1.ru` for a newer version and asks before downloading.
-4. Select a numbered bypass strategy, or press `B` for blockcheck.sh.
+4. Select a numbered bypass strategy. `fast` is the default; use `safe` only
+   if a service does not work with the faster profile. Press `B` for blockcheck.sh.
    Press `L` to open the verified official website directory.
 5. Keep the Zapret console open while using the selected strategy.
 
@@ -101,10 +102,11 @@ service hostlist. Telegram WebSocket domains receive the selected TLS bypass
 strategy, while Telegram's official IP ranges have a separate TCP profile for
 ports 80, 443, 5222 and 5223.
 
-While the console is open, Windows temporarily prefers IPv4. This avoids a
+The compatibility `safe` profile temporarily prefers IPv4. This avoids a
 broken IPv6 VPN route preventing Telegram Web from reaching its API servers.
-The original prefix policy is restored when the console exits, including when
-the window is closed. The launcher does not restart or reconfigure VPN adapters,
+The fast profile leaves Windows network preference unchanged. The original
+prefix policy is restored when the console exits, including when the window is
+closed. The launcher does not restart or reconfigure VPN adapters,
 and never modifies the Windows HOSTS file or browser profiles. The optional
 Kazakhstan site proxy temporarily changes only the Windows automatic-proxy URL
 while Zapret is running. If Yandex Browser was already open, restart it with
