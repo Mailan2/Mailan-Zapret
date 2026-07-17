@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("menu", "blockcheck", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
+    [ValidateSet("menu", "blockcheck", "bootstrap", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
     [string]$Command = "console",
 
     [string]$Profile = "safe",
@@ -182,11 +182,73 @@ function Get-WinwsBinary {
     param([Parameter(Mandatory)]$Config)
 
     $binaryPath = Resolve-ProjectPath $Config.binary
+    [void](Restore-BundledRuntimeFiles -BinaryPath $binaryPath)
     if (-not (Test-Path -LiteralPath $binaryPath)) {
-        throw "winws binary not found: $binaryPath"
+        throw "winws binary not found: $binaryPath. Run mailan-zapret.cmd bootstrap or download a complete release archive."
     }
 
     return $binaryPath
+}
+
+function Restore-BundledRuntimeFiles {
+    param([Parameter(Mandatory)][string]$BinaryPath)
+
+    $binaryDirectory = Split-Path -Parent $BinaryPath
+    $runtimeFiles = @(
+        [pscustomobject]@{
+            Name = "winws.exe"
+            Source = "vendor\\blockcheck\\zapret\\nfq\\winws.exe"
+            Sha256 = "2da71e80878dc270ac83f5893ecbb841f9752a57f1da8ff9325636b4346bc632"
+        },
+        [pscustomobject]@{
+            Name = "WinDivert.dll"
+            Source = "vendor\\blockcheck\\zapret\\nfq\\WinDivert.dll"
+            Sha256 = "06c3f201b815a5798816e8c15b925b28f3c38e5aba31efedec10af9e598ce723"
+        },
+        [pscustomobject]@{
+            Name = "WinDivert64.sys"
+            Source = "vendor\\blockcheck\\zapret\\nfq\\WinDivert64.sys"
+            Sha256 = "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2"
+        },
+        [pscustomobject]@{
+            Name = "cygwin1.dll"
+            Source = "vendor\\cygwin\\bin\\cygwin1.dll"
+            Sha256 = "103104a52e5293ce418944725df19e2bf81ad9269b9a120d71d39028e821499b"
+        }
+    )
+
+    $missingFiles = @($runtimeFiles | Where-Object {
+        -not (Test-Path -LiteralPath (Join-Path $binaryDirectory $_.Name))
+    })
+    if ($missingFiles.Count -eq 0) {
+        return @()
+    }
+
+    [void](New-Item -ItemType Directory -Path $binaryDirectory -Force)
+    Write-Host "Restoring bundled Zapret runtime files..." -ForegroundColor Cyan
+    $restored = New-Object System.Collections.Generic.List[string]
+    foreach ($file in $missingFiles) {
+        $sourcePath = Resolve-ProjectPath $file.Source
+        if (-not (Test-Path -LiteralPath $sourcePath)) {
+            throw "Bundled runtime source is missing: $sourcePath. Download a complete Mailan Zapret release archive."
+        }
+
+        $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($sourceHash -ne $file.Sha256) {
+            throw "Bundled runtime verification failed for $($file.Name). Download a fresh Mailan Zapret release archive."
+        }
+
+        $destinationPath = Join-Path $binaryDirectory $file.Name
+        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+        $destinationHash = (Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($destinationHash -ne $file.Sha256) {
+            Remove-Item -LiteralPath $destinationPath -Force -ErrorAction SilentlyContinue
+            throw "Runtime restore verification failed for $($file.Name)."
+        }
+        [void]$restored.Add($file.Name)
+    }
+
+    Write-Host ("Restored: {0}" -f ($restored -join ", ")) -ForegroundColor Green
 }
 
 function Get-ProfileArguments {
@@ -677,6 +739,10 @@ try {
     switch ($Command) {
         "blockcheck" {
             Start-MailanBlockcheck
+        }
+        "bootstrap" {
+            $binaryPath = Get-WinwsBinary -Config $config
+            Write-Host "Bundled runtime is ready: $binaryPath" -ForegroundColor Green
         }
         "console" {
             $exitCode = Start-MailanZapretConsole -Config $config -ProfileConfig $profileConfig -Name $Profile

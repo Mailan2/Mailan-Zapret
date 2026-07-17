@@ -3,7 +3,3 @@ runtime/*.log
 runtime/*.tmp
 runtime/update-*
 config/version.local.json
-bin/*.exe
-bin/*.dll
-bin/*.sys
-bin/*.cat

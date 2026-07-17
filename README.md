@@ -5,6 +5,10 @@ Personal Windows wrapper for running a local Zapret/winws profile.
 The project includes the official Zapret v72.12 Windows binary, matching
 WinDivert files, Cygwin and blockcheck.sh from the same bundle.
 
+The root `bin` runtime files are included in GitHub downloads. If a source ZIP
+was created without them, the launcher restores the verified local copies from
+`vendor` on its first run.
+
 Use this only on networks and devices where you are allowed to change traffic
 handling.
 
@@ -32,10 +36,12 @@ handling.
 ## Quick start
 
 1. Run `mailan-zapret.cmd` and approve the Administrator prompt.
-2. The launcher checks `Mailan1.ru` for a newer version and asks before downloading.
-3. Select a numbered bypass strategy, or press `B` for blockcheck.sh.
+2. If this was downloaded from GitHub, the launcher restores its bundled winws and
+   WinDivert files automatically on the first run.
+3. The launcher checks `Mailan1.ru` for a newer version and asks before downloading.
+4. Select a numbered bypass strategy, or press `B` for blockcheck.sh.
    Press `L` to open the verified official website directory.
-4. Keep the Zapret console open while using the selected strategy.
+5. Keep the Zapret console open while using the selected strategy.
 
 Closing that console stops Zapret.
 
@@ -43,6 +49,7 @@ You can also run commands manually from PowerShell or Command Prompt:
 
 ```powershell
 .\mailan-zapret.cmd doctor
+.\mailan-zapret.cmd bootstrap
 .\mailan-zapret.cmd args -Profile safe
 .\mailan-zapret.cmd console -Profile safe
 .\mailan-zapret.cmd start -Profile safe
@@ -103,3 +110,10 @@ the current connection is never replaced underneath it.
 
 Server publishing instructions and the manifest format are documented in
 `UPDATE-SERVER.md`.
+
+## GitHub distribution
+
+Commit the files in `bin` when publishing the repository: `winws.exe`,
+`WinDivert.dll`, `WinDivert64.sys`, and `cygwin1.dll`. People who downloaded an
+older source ZIP should download the latest ZIP again after it is published, or
+run `mailan-zapret.cmd bootstrap` after receiving the updated launcher script.

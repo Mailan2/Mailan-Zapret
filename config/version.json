@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "manifest_url": "https://mailan1.ru/zapret/update.json",
   "allowed_download_hosts": [
     "mailan1.ru",
