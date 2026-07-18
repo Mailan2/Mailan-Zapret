@@ -87,13 +87,39 @@
     },
     "safe": {
       "description": "Compatibility profile with stronger repeats.",
-      "prefer_ipv4_while_running": true,
+      "prefer_ipv4_while_running": false,
       "segments": [
         {
           "args": [
             "--filter-tcp=443",
             "--dpi-desync=fake,multisplit",
             "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "telegram-ws": {
+      "description": "Telegram Web and WebSocket-only compatibility profile.",
+      "hostlists": [
+        "hostlists\\telegram.txt"
+      ],
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,hostfakesplit",
+            "--dpi-desync-hostfakesplit-midhost=midsld",
+            "--dpi-desync-hostfakesplit-mod=altorder=1",
             "--dpi-desync-repeats=6",
             "--dpi-desync-fooling=badseq"
           ]
@@ -221,6 +247,75 @@
             "--filter-l7=quic",
             "--dpi-desync=fake",
             "--dpi-desync-repeats=6",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "hostfake": {
+      "description": "Fake-host TLS segmentation for SNI-based DPI.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,hostfakesplit",
+            "--dpi-desync-hostfakesplit-midhost=midsld",
+            "--dpi-desync-hostfakesplit-mod=altorder=1",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "seqovl": {
+      "description": "TLS sequence-overlap split for stateful DPI.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=2,midsld",
+            "--dpi-desync-split-seqovl=1",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+          ]
+        }
+      ]
+    },
+    "fakeddisorder": {
+      "description": "Fake TLS packets with reverse-order segmentation.",
+      "segments": [
+        {
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,fakeddisorder",
+            "--dpi-desync-split-pos=midsld",
+            "--dpi-desync-fakedsplit-mod=altorder=1",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq"
+          ]
+        },
+        {
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=4",
             "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
           ]
         }

@@ -3,7 +3,12 @@ param(
     [ValidateSet("setup", "enable", "disable", "serve", "stop", "status")]
     [string]$Command = "status",
 
-    [int]$ParentPid = 0
+    [int]$ParentPid = 0,
+
+    [ValidateSet("kazakhstan", "telegram")]
+    [string]$Mode = "kazakhstan",
+
+    [string]$DiagnosticLog
 )
 
 Set-StrictMode -Version Latest
@@ -11,13 +16,39 @@ $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RuntimeDirectory = Join-Path $Root "runtime"
-$ConfigPath = Join-Path $Root "config\kazakhstan-proxy.local.json"
 $GatewaySourcePath = Join-Path $PSScriptRoot "KazakhstanProxyGateway.cs"
-$StatePath = Join-Path $RuntimeDirectory "kazakhstan-proxy-state.json"
-$StopPath = Join-Path $RuntimeDirectory "kazakhstan-proxy.stop"
 $InternetSettingsPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-$PacPath = "/mailan-zapret-kz.pac"
-$AllowedDomains = @("pornhub.com", "phncdn.com", "torproject.org")
+$ModeSettings = switch ($Mode) {
+    "kazakhstan" {
+        [pscustomobject]@{
+            label = "Kazakhstan sites"
+            config_name = "kazakhstan-proxy.local.json"
+            state_name = "kazakhstan-proxy-state.json"
+            stop_name = "kazakhstan-proxy.stop"
+            pac_path = "/mailan-zapret-kz.pac"
+            listener_port = 17891
+            enabled_by_default = $false
+            domains = @("pornhub.com", "phncdn.com", "torproject.org")
+        }
+    }
+    "telegram" {
+        [pscustomobject]@{
+            label = "Telegram Russia"
+            config_name = "telegram-proxy.local.json"
+            state_name = "telegram-proxy-state.json"
+            stop_name = "telegram-proxy.stop"
+            pac_path = "/mailan-zapret-telegram.pac"
+            listener_port = 17892
+            enabled_by_default = $true
+            domains = @("telegram.org", "telegram.me", "telegram.dog", "t.me", "telegra.ph", "telesco.pe", "graph.org", "tdesktop.com", "telegram-cdn.org", "telegramusercontent.com")
+        }
+    }
+}
+$ConfigPath = Join-Path $Root (Join-Path "config" $ModeSettings.config_name)
+$StatePath = Join-Path $RuntimeDirectory $ModeSettings.state_name
+$StopPath = Join-Path $RuntimeDirectory $ModeSettings.stop_name
+$PacPath = $ModeSettings.pac_path
+$AllowedDomains = @($ModeSettings.domains)
 
 function Write-Utf8Json {
     param(
@@ -83,18 +114,18 @@ namespace MailanZapret
 
 function Get-KazakhstanProxyConfiguration {
     if (-not (Test-Path -LiteralPath $ConfigPath)) {
-        throw "Kazakhstan proxy is not configured. Run: .\mailan-zapret.cmd proxy-setup"
+        throw "$($ModeSettings.label) proxy is not configured."
     }
 
     $configuration = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
     $port = [int]$configuration.listener_port
     if ($port -lt 1024 -or $port -gt 65535) {
-        throw "Kazakhstan proxy listener_port must be between 1024 and 65535."
+        throw "$($ModeSettings.label) proxy listener_port must be between 1024 and 65535."
     }
 
     $domains = @($configuration.domains | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() })
     if ($domains.Count -eq 0 -or @($domains | Where-Object { $_ -notin $AllowedDomains }).Count -gt 0) {
-        throw "Kazakhstan proxy domains must be limited to: $($AllowedDomains -join ', ')"
+        throw "$($ModeSettings.label) proxy domains must be limited to: $($AllowedDomains -join ', ')"
     }
 
     $proxies = @($configuration.proxies)
@@ -107,7 +138,7 @@ function Get-KazakhstanProxyConfiguration {
             [int]$proxy.port -lt 1 -or [int]$proxy.port -gt 65535 -or
             [string]::IsNullOrWhiteSpace([string]$proxy.username) -or
             [string]::IsNullOrWhiteSpace([string]$proxy.password_protected)) {
-            throw "Kazakhstan proxy configuration is incomplete. Run proxy-setup again."
+        throw "$($ModeSettings.label) proxy configuration is incomplete. Run setup again."
         }
     }
 
@@ -118,24 +149,51 @@ function Get-PlaintextPassword {
     param([Parameter(Mandatory)][string]$ProtectedValue)
 
     try {
+        if ($ProtectedValue.StartsWith("machine:", [StringComparison]::Ordinal)) {
+            Add-Type -AssemblyName System.Security
+            $cipherBytes = [Convert]::FromBase64String($ProtectedValue.Substring("machine:".Length))
+            $plainBytes = [System.Security.Cryptography.ProtectedData]::Unprotect(
+                $cipherBytes,
+                $null,
+                [System.Security.Cryptography.DataProtectionScope]::LocalMachine
+            )
+            return [Text.Encoding]::UTF8.GetString($plainBytes)
+        }
         $secureValue = ConvertTo-SecureString -String $ProtectedValue
         $credential = New-Object System.Management.Automation.PSCredential "unused", $secureValue
         return $credential.GetNetworkCredential().Password
     }
     catch {
-        throw "The Kazakhstan proxy password cannot be decrypted for this Windows user. Run proxy-setup again."
+        throw "The $($ModeSettings.label) proxy password cannot be decrypted for this Windows user. Run setup again."
     }
+}
+
+function Protect-LocalPassword {
+    param([Parameter(Mandatory)][Security.SecureString]$SecureValue)
+
+    Add-Type -AssemblyName System.Security
+    $credential = New-Object System.Management.Automation.PSCredential "unused", $SecureValue
+    $plainBytes = [Text.Encoding]::UTF8.GetBytes($credential.GetNetworkCredential().Password)
+    $cipherBytes = [System.Security.Cryptography.ProtectedData]::Protect(
+        $plainBytes,
+        $null,
+        [System.Security.Cryptography.DataProtectionScope]::LocalMachine
+    )
+    return "machine:" + [Convert]::ToBase64String($cipherBytes)
 }
 
 function Get-PacContent {
     param([Parameter(Mandatory)][int]$Port)
 
+    $domainChecks = @($AllowedDomains | ForEach-Object {
+        $domain = [string]$_
+        "host === `"$domain`" || dnsDomainIs(host, `".$domain`")"
+    }) -join " ||`r`n      "
+
     return @"
 function FindProxyForURL(url, host) {
   host = host.toLowerCase();
-  if (host === "pornhub.com" || dnsDomainIs(host, ".pornhub.com") ||
-      host === "phncdn.com" || dnsDomainIs(host, ".phncdn.com") ||
-      host === "torproject.org" || dnsDomainIs(host, ".torproject.org")) {
+  if ($domainChecks) {
     return "PROXY 127.0.0.1:$Port";
   }
   return "DIRECT";
@@ -168,7 +226,7 @@ function Clear-StaleState {
 
     $owner = Get-Process -Id ([int]$state.owner_pid) -ErrorAction SilentlyContinue
     if ($owner) {
-        throw "Kazakhstan proxy is already running. PID: $($owner.Id)"
+        throw "$($ModeSettings.label) proxy is already running. PID: $($owner.Id)"
     }
 
     Restore-PreviousProxySettings -State $state
@@ -179,7 +237,7 @@ function Clear-StaleState {
 function Start-KazakhstanProxySetup {
     [void](New-Item -ItemType Directory -Path $RuntimeDirectory -Force)
 
-    Write-Host "Kazakhstan site proxy setup" -ForegroundColor Cyan
+    Write-Host "$($ModeSettings.label) proxy setup" -ForegroundColor Cyan
     Write-Host "The password is encrypted for the current Windows user and is not added to GitHub."
     $primaryHost = (Read-Host "Primary SOCKS5 host").Trim()
     $primaryPort = 0
@@ -197,7 +255,7 @@ function Start-KazakhstanProxySetup {
         host = $primaryHost
         port = $primaryPort
         username = $username
-        password_protected = (ConvertFrom-SecureString -SecureString $password)
+        password_protected = (Protect-LocalPassword -SecureValue $password)
     })
 
     $secondaryHost = (Read-Host "Secondary SOCKS5 host (press Enter to skip)").Trim()
@@ -210,30 +268,35 @@ function Start-KazakhstanProxySetup {
             host = $secondaryHost
             port = $secondaryPort
             username = $username
-            password_protected = (ConvertFrom-SecureString -SecureString $password)
+            password_protected = (Protect-LocalPassword -SecureValue $password)
         })
     }
 
     $configuration = [pscustomobject]@{
-        enabled = $false
-        listener_port = 17891
+        enabled = [bool]$ModeSettings.enabled_by_default
+        listener_port = [int]$ModeSettings.listener_port
         domains = $AllowedDomains
         proxies = $proxies.ToArray()
     }
     Write-Utf8Json -Path $ConfigPath -Value $configuration
-    Write-Host "Saved local Kazakhstan proxy configuration." -ForegroundColor Green
-    Write-Host "The Kazakhstan proxy is disabled by default. Enable it only on a Kazakhstan connection with: .\mailan-zapret.cmd proxy-enable"
+    Write-Host "Saved local $($ModeSettings.label) proxy configuration." -ForegroundColor Green
+    if ($Mode -eq "kazakhstan") {
+        Write-Host "The Kazakhstan proxy is disabled by default. Enable it only on a Kazakhstan connection with: .\mailan-zapret.cmd proxy-enable"
+    }
+    else {
+        Write-Host "Telegram Russia proxy will start with Zapret. It routes only Telegram domains in system-proxy browsers."
+    }
 }
 
 function Set-KazakhstanProxyEnabled {
     param([Parameter(Mandatory)][bool]$Enabled)
 
     if (-not (Test-Path -LiteralPath $ConfigPath)) {
-        throw "Kazakhstan proxy is not configured. Run: .\mailan-zapret.cmd proxy-setup"
+        throw "$($ModeSettings.label) proxy is not configured."
     }
     $runningState = Get-ExistingState
     if ($Enabled -and $runningState) {
-        throw "Stop the running Kazakhstan proxy before changing its enabled state."
+        throw "Stop the running $($ModeSettings.label) proxy before changing its enabled state."
     }
     if (-not $Enabled -and $runningState) {
         Stop-KazakhstanProxyServer
@@ -243,10 +306,10 @@ function Set-KazakhstanProxyEnabled {
     $configuration | Add-Member -MemberType NoteProperty -Name "enabled" -Value $Enabled -Force
     Write-Utf8Json -Path $ConfigPath -Value $configuration
     if ($Enabled) {
-        Write-Host "Kazakhstan proxy enabled for the next Zapret start."
+        Write-Host "$($ModeSettings.label) proxy enabled for the next Zapret start."
     }
     else {
-        Write-Host "Kazakhstan proxy disabled."
+        Write-Host "$($ModeSettings.label) proxy disabled."
     }
 }
 
@@ -257,7 +320,7 @@ function Start-KazakhstanProxyServer {
     Clear-StaleState
     $configuration = Get-KazakhstanProxyConfiguration
     if (-not (Test-Path -LiteralPath $GatewaySourcePath)) {
-        throw "Kazakhstan proxy gateway source not found: $GatewaySourcePath"
+        throw "$($ModeSettings.label) proxy gateway source not found: $GatewaySourcePath"
     }
 
     if (-not ("MailanZapret.LocalSocksGateway" -as [type])) {
@@ -276,8 +339,17 @@ function Start-KazakhstanProxyServer {
 
     $port = [int]$configuration.listener_port
     $pacUrl = "http://127.0.0.1:$port$PacPath"
+    $trafficLogPath = if ($Mode -eq "telegram") {
+        Join-Path $RuntimeDirectory "telegram-proxy-traffic.log"
+    }
+    else {
+        $null
+    }
+    if ($trafficLogPath) {
+        [IO.File]::WriteAllText($trafficLogPath, "", (New-Object Text.UTF8Encoding($false)))
+    }
     $gateway = New-Object MailanZapret.LocalSocksGateway `
-        $port, $upstreams.ToArray(), @($configuration.domains), $PacPath, (Get-PacContent -Port $port)
+        $port, $upstreams.ToArray(), @($configuration.domains), $PacPath, (Get-PacContent -Port $port), $trafficLogPath
     $gateway.Start()
 
     $state = [pscustomobject]@{
@@ -307,7 +379,7 @@ function Start-KazakhstanProxyServer {
 function Stop-KazakhstanProxyServer {
     $state = Get-ExistingState
     if (-not $state) {
-        Write-Host "Kazakhstan proxy is not running."
+        Write-Host "$($ModeSettings.label) proxy is not running."
         return
     }
 
@@ -322,23 +394,23 @@ function Stop-KazakhstanProxyServer {
         Remove-Item -LiteralPath $StatePath -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $StopPath -Force -ErrorAction SilentlyContinue
-    Write-Host "Kazakhstan proxy stopped and Windows proxy settings restored."
+    Write-Host "$($ModeSettings.label) proxy stopped and Windows proxy settings restored."
 }
 
 function Show-KazakhstanProxyStatus {
     $state = Get-ExistingState
     if (-not $state) {
-        Write-Host "Kazakhstan proxy: not running"
+        Write-Host "$($ModeSettings.label) proxy: not running"
         return
     }
 
     $owner = Get-Process -Id ([int]$state.owner_pid) -ErrorAction SilentlyContinue
     if (-not $owner) {
-        Write-Host "Kazakhstan proxy: stale state detected"
+        Write-Host "$($ModeSettings.label) proxy: stale state detected"
         return
     }
 
-    Write-Host "Kazakhstan proxy: running. PID: $($owner.Id)"
+    Write-Host "$($ModeSettings.label) proxy: running. PID: $($owner.Id)"
     Write-Host "Domains: $($AllowedDomains -join ', ')"
     Write-Host "PAC URL: $($state.pac_url)"
 }

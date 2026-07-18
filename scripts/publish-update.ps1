@@ -55,7 +55,7 @@ try {
         Copy-Item -LiteralPath $item.FullName -Destination $stagingPath -Recurse -Force
     }
 
-    foreach ($localConfigName in @("version.local.json", "kazakhstan-proxy.local.json")) {
+    foreach ($localConfigName in @("version.local.json", "kazakhstan-proxy.local.json", "telegram-proxy.local.json", "language.local.json")) {
         $localConfigCopy = Join-Path $stagingPath (Join-Path "config" $localConfigName)
         if (Test-Path -LiteralPath $localConfigCopy) {
             Remove-Item -LiteralPath $localConfigCopy -Force

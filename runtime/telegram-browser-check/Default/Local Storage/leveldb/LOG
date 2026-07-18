@@ -1,0 +1,5 @@
+2026/07/18-12:26:41.047 4604 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Local Storage\leveldb is locked for recovering successfully
+2026/07/18-12:26:41.050 4604 Creating DB C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Local Storage\leveldb since it was missing.
+2026/07/18-12:26:41.097 4604 Reusing MANIFEST C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Local Storage\leveldb/MANIFEST-000001
+2026/07/18-12:27:52.639 4604 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Local Storage\leveldb, waiting for background work finished
+2026/07/18-12:27:52.639 4604 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Local Storage\leveldb, background work finished

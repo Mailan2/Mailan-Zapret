@@ -1,0 +1,4 @@
+2026/07/18-12:26:41.020 72fc File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\ClientCertificates is locked for recovering successfully
+2026/07/18-12:26:41.020 72fc Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\ClientCertificates, waiting for background work finished
+2026/07/18-12:26:41.023 72fc Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\ClientCertificates, background work finished
+2026/07/18-12:26:41.024 72fc File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\ClientCertificates unlocked successfully

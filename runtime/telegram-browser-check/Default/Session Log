@@ -1,0 +1,25 @@
+
+2026-07-18 09:26:40.977 [0] InitSessionLog done
+2026-07-18 09:26:40.977 [1] New session 26.6.2.938 (spaces: 1)
+2026-07-18 09:26:40.977 [0] ScheduleResetCommands
+2026-07-18 09:26:40.977 [0] ClearPendingCommands
+2026-07-18 09:26:40.998 [0] RegisterProfile background mode
+2026-07-18 09:26:41.007 [1] OpenTabsInBrowser
+2026-07-18 09:26:41.007 [1] AddKeepAlive: keep_alives=2
+2026-07-18 09:26:41.071 [0] WindowOpened
+2026-07-18 09:26:41.071 [1] OnSpaceAdded: 700741998
+2026-07-18 09:26:41.071 [1] OnActiveSpaceChanged
+2026-07-18 09:26:41.088 [39] AddKeepAlive: keep_alives=2
+2026-07-18 09:26:41.104 [0] Session restored
+2026-07-18 09:26:41.104 [0] OnWindowsAndTabsRestored
+2026-07-18 09:26:41.105 [0] Initial SessionState
+2026-07-18 09:26:41.105 [1] Launch
+2026-07-18 09:26:44.115 [13] AppendCommandsWithReset
+2026-07-18 09:26:44.115 [1] Init
+2026-07-18 09:26:44.115 [0] Init done
+2026-07-18 09:26:44.115 [0] TruncateOrOpenFile
+2026-07-18 09:26:44.115 [0] OpenAndWriteHeader
+2026-07-18 09:26:44.116 [0] OpenAndWriteHeader done
+2026-07-18 09:26:44.116 [0] TruncateOrOpenFile done
+2026-07-18 09:26:44.119 [18] AddKeepAlive: keep_alives=3
+2026-07-18 09:26:44.119 [18] RemoveKeepAlive: keep_alives=2

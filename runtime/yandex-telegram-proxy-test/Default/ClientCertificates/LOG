@@ -1,0 +1,4 @@
+2026/07/18-12:23:51.181 4920 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\ClientCertificates is locked for recovering successfully
+2026/07/18-12:23:51.181 4920 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\ClientCertificates, waiting for background work finished
+2026/07/18-12:23:51.181 4920 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\ClientCertificates, background work finished
+2026/07/18-12:23:51.182 4920 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\ClientCertificates unlocked successfully

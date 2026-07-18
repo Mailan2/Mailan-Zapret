@@ -1,0 +1,4 @@
+2026/07/18-12:23:54.451 4f68 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\BudgetDatabase is locked for recovering successfully
+2026/07/18-12:23:54.451 4f68 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\BudgetDatabase, waiting for background work finished
+2026/07/18-12:23:54.451 4f68 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\BudgetDatabase, background work finished
+2026/07/18-12:23:54.451 4f68 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\BudgetDatabase unlocked successfully

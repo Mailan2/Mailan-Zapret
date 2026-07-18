@@ -1,0 +1,4 @@
+2026/07/18-12:26:44.213 3c50 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\BudgetDatabase is locked for recovering successfully
+2026/07/18-12:26:44.214 3c50 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\BudgetDatabase, waiting for background work finished
+2026/07/18-12:26:44.214 3c50 Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\BudgetDatabase, background work finished
+2026/07/18-12:26:44.214 3c50 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\BudgetDatabase unlocked successfully

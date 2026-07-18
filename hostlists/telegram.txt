@@ -8,11 +8,13 @@ tdesktop.com
 telegram-cdn.org
 telegramusercontent.com
 web.telegram.org
+webk.telegram.org
 kws1.web.telegram.org
 kws2.web.telegram.org
 kws3.web.telegram.org
 kws4.web.telegram.org
 kws5.web.telegram.org
+kws6.web.telegram.org
 pluto.web.telegram.org
 venus.web.telegram.org
 aurora.web.telegram.org

@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("menu", "blockcheck", "bootstrap", "proxy-setup", "proxy-enable", "proxy-disable", "proxy-status", "proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
+    [ValidateSet("menu", "language", "blockcheck", "bootstrap", "proxy-setup", "proxy-enable", "proxy-disable", "proxy-status", "proxy-stop", "telegram-proxy-setup", "telegram-proxy-enable", "telegram-proxy-disable", "telegram-proxy-status", "telegram-proxy-stop", "console", "start", "stop", "restart", "status", "doctor", "args", "check-update")]
     [string]$Command = "console",
 
-    [string]$Profile = "fast",
+    [string]$Profile = "safe",
 
     [string]$ConfigPath,
 
@@ -15,8 +15,101 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$LanguageConfigPath = Join-Path $Root "config\language.local.json"
+$TranslationPath = Join-Path $Root "config\translations.json"
+$Script:MailanLanguage = "ru"
+if (-not (Test-Path -LiteralPath $TranslationPath)) {
+    throw "Translation file not found: $TranslationPath"
+}
+$Translations = Get-Content -LiteralPath $TranslationPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if (-not $ConfigPath) {
     $ConfigPath = Join-Path $Root "config\profiles.json"
+}
+
+function Get-Text {
+    param(
+        [Parameter(Mandatory)][string]$Key,
+        [object[]]$Arguments = @()
+    )
+
+    $catalog = $Translations.PSObject.Properties[$Script:MailanLanguage].Value
+    $value = $catalog.PSObject.Properties[$Key].Value
+    if (-not $value) {
+        $value = $Translations.en.PSObject.Properties[$Key].Value
+    }
+    if ($Arguments.Count -eq 0) {
+        return $value
+    }
+    return ($value -f $Arguments)
+}
+
+function Save-MailanLanguage {
+    param([Parameter(Mandatory)][ValidateSet("ru", "en")][string]$Language)
+
+    $json = [pscustomobject]@{ language = $Language } | ConvertTo-Json
+    [IO.File]::WriteAllText($LanguageConfigPath, $json, (New-Object Text.UTF8Encoding($false)))
+}
+
+function Get-SavedMailanLanguage {
+    if (-not (Test-Path -LiteralPath $LanguageConfigPath)) {
+        return "ru"
+    }
+
+    try {
+        $saved = Get-Content -LiteralPath $LanguageConfigPath -Raw | ConvertFrom-Json
+        if ([string]$saved.language -in @("ru", "en")) {
+            return [string]$saved.language
+        }
+    }
+    catch {
+    }
+    return "ru"
+}
+
+function Select-MailanLanguage {
+    param([switch]$Force)
+
+    $savedLanguage = Get-SavedMailanLanguage
+    $Script:MailanLanguage = $savedLanguage
+    if (-not $Force -and $Command -ne "menu" -and $Command -ne "console") {
+        return
+    }
+
+    $defaultNumber = if ($savedLanguage -eq "ru") { "1" } else { "2" }
+    while ($true) {
+        Write-Host ""
+        Write-Host (Get-Text "language_title")
+        Write-Host (Get-Text "language_russian")
+        Write-Host "[2] English"
+        Write-Host ""
+        $selection = Read-Host (Get-Text "language_prompt" @($defaultNumber))
+        if (-not $selection) {
+            $selection = $defaultNumber
+        }
+        $selection = $selection.Trim()
+        if ($selection -eq "1") {
+            $Script:MailanLanguage = "ru"
+            Save-MailanLanguage -Language "ru"
+            return
+        }
+        if ($selection -eq "2") {
+            $Script:MailanLanguage = "en"
+            Save-MailanLanguage -Language "en"
+            return
+        }
+        Write-Host (Get-Text "language_invalid") -ForegroundColor Yellow
+    }
+}
+
+function Get-ProfileDescription {
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)]$Profile)
+
+    $key = "profile_" + $Name
+    $localized = $Translations.PSObject.Properties[$Script:MailanLanguage].Value.PSObject.Properties[$key].Value
+    if ($localized) {
+        return $localized
+    }
+    return [string]$Profile.description
 }
 
 function Resolve-ProjectPath {
@@ -92,6 +185,22 @@ function Test-KazakhstanProxyConfigured {
     }
 }
 
+function Test-TelegramProxyConfigured {
+    $configPath = Join-Path $Root "config\telegram-proxy.local.json"
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        return $false
+    }
+
+    try {
+        $configuration = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $enabledProperty = $configuration.PSObject.Properties["enabled"]
+        return ($enabledProperty -and [bool]$enabledProperty.Value)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Test-LocalTcpPort {
     param(
         [Parameter(Mandatory)][int]$Port,
@@ -152,15 +261,95 @@ function Start-KazakhstanProxyGateway {
     throw "Kazakhstan site proxy did not start. Run: .\mailan-zapret.cmd proxy-status"
 }
 
+function Start-TelegramProxyGateway {
+    param([Parameter(Mandatory)][int]$ParentPid)
+
+    $proxyScript = Join-Path $Root "scripts\kazakhstan-proxy.ps1"
+    $runtimeDirectory = Join-Path $Root "runtime"
+    [void](New-Item -ItemType Directory -Path $runtimeDirectory -Force)
+    $diagnosticPath = Join-Path $runtimeDirectory "telegram-proxy-startup.log"
+    Remove-Item -LiteralPath $diagnosticPath -Force -ErrorAction SilentlyContinue
+    $gatewayJob = Start-Job -ScriptBlock {
+        param($ScriptPath, $WinwsPid, $LogPath)
+        & $ScriptPath serve -ParentPid $WinwsPid -Mode telegram -DiagnosticLog $LogPath
+    } -ArgumentList $proxyScript, $ParentPid, $diagnosticPath
+    for ($attempt = 0; $attempt -lt 75; $attempt++) {
+        if (Test-LocalTcpPort -Port 17892) {
+            return $gatewayJob
+        }
+        if ($gatewayJob.State -ne "Running") { break }
+        Start-Sleep -Milliseconds 200
+    }
+    Stop-Job -Job $gatewayJob -ErrorAction SilentlyContinue
+    $jobOutput = Receive-Job -Job $gatewayJob -ErrorAction SilentlyContinue | Out-String
+    Remove-Job -Job $gatewayJob -Force -ErrorAction SilentlyContinue
+    $details = if (Test-Path -LiteralPath $diagnosticPath) {
+        (Get-Content -LiteralPath $diagnosticPath -Raw).Trim()
+    }
+    else {
+        ""
+    }
+    if ($details.Length -gt 800) { $details = $details.Substring(0, 800) }
+    if (-not $details) { $details = $jobOutput.Trim() }
+    if ($details) {
+        throw "Telegram Russia proxy did not start: $details"
+    }
+    throw "Telegram Russia proxy did not start. Run: .\mailan-zapret.cmd telegram-proxy-status"
+}
+
+function Start-TelegramLiveDiagnostics {
+    param([Parameter(Mandatory)][int]$ParentPid)
+
+    $diagnosticScript = Join-Path $Root "scripts\telegram-live-log.ps1"
+    if (-not (Test-Path -LiteralPath $diagnosticScript)) {
+        throw "Telegram diagnostics script not found: $diagnosticScript"
+    }
+
+    $logPath = Join-Path $Root "runtime\telegram-proxy-traffic.log"
+    $argumentItems = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $diagnosticScript,
+        "-ParentPid", [string]$ParentPid,
+        "-LogPath", $logPath,
+        "-Language", $Script:MailanLanguage
+    )
+    $argumentLine = ConvertTo-ArgumentLine -Arguments $argumentItems
+    Start-Process -FilePath "powershell.exe" -ArgumentList $argumentLine -WorkingDirectory $Root -WindowStyle Normal | Out-Null
+}
+
+function Start-ConfiguredSiteProxyGateway {
+    param(
+        [Parameter(Mandatory)][int]$ParentPid,
+        [switch]$SkipTelegramProxy
+    )
+
+    $kazakhstanEnabled = Test-KazakhstanProxyConfigured
+    $telegramEnabled = Test-TelegramProxyConfigured
+    if ($kazakhstanEnabled -and $telegramEnabled -and -not $SkipTelegramProxy) {
+        throw "Only one regional proxy can be enabled. Disable the Kazakhstan proxy before using Telegram Russia."
+    }
+    if ($telegramEnabled -and -not $SkipTelegramProxy) {
+        return Start-TelegramProxyGateway -ParentPid $ParentPid
+    }
+    if ($kazakhstanEnabled) {
+        return Start-KazakhstanProxyGateway -ParentPid $ParentPid
+    }
+    return $null
+}
+
 function Invoke-KazakhstanProxyCommand {
-    param([Parameter(Mandatory)][ValidateSet("setup", "enable", "disable", "status", "stop")][string]$ProxyCommand)
+    param(
+        [Parameter(Mandatory)][ValidateSet("setup", "enable", "disable", "status", "stop")][string]$ProxyCommand,
+        [ValidateSet("kazakhstan", "telegram")][string]$Mode = "kazakhstan"
+    )
 
     $proxyScript = Join-Path $Root "scripts\kazakhstan-proxy.ps1"
     if (-not (Test-Path -LiteralPath $proxyScript)) {
         throw "Kazakhstan proxy script not found: $proxyScript"
     }
 
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $proxyScript $ProxyCommand
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $proxyScript $ProxyCommand -Mode $Mode
     if ($LASTEXITCODE -ne 0) {
         throw "Kazakhstan proxy command failed with exit code $LASTEXITCODE."
     }
@@ -474,18 +663,27 @@ function Get-ProfileArguments {
 function Select-MailanProfile {
     param([Parameter(Mandatory)]$Config)
 
-    $profiles = @($Config.profiles.PSObject.Properties)
-    Write-Host ""
-    Write-Host "Select bypass strategy:"
-    for ($index = 0; $index -lt $profiles.Count; $index++) {
-        Write-Host ("[{0}] {1} - {2}" -f ($index + 1), $profiles[$index].Name, $profiles[$index].Value.description)
+    $profileProperties = $Config.profiles.PSObject.Properties
+    $preferredNames = @("safe", "telegram-ws", "fast", "official", "multisplit", "multidisorder", "fakedsplit", "hostfake", "seqovl", "fakeddisorder")
+    $profiles = New-Object System.Collections.Generic.List[object]
+    foreach ($name in $preferredNames) {
+        $profile = $profileProperties[$name]
+        if ($profile) { [void]$profiles.Add($profile) }
     }
-    Write-Host "[B] blockcheck.sh - auto-detect working strategies"
-    Write-Host "[L] verified official website links"
+    foreach ($profile in $profileProperties) {
+        if ($profile.Name -notin $preferredNames) { [void]$profiles.Add($profile) }
+    }
+    Write-Host ""
+    Write-Host (Get-Text "strategy_title")
+    for ($index = 0; $index -lt $profiles.Count; $index++) {
+        Write-Host ("[{0}] {1} - {2}" -f ($index + 1), $profiles[$index].Name, (Get-ProfileDescription -Name $profiles[$index].Name -Profile $profiles[$index].Value))
+    }
+    Write-Host (Get-Text "blockcheck")
+    Write-Host (Get-Text "links")
     Write-Host ""
 
     while ($true) {
-        $selection = Read-Host "Strategy number (default 1)"
+        $selection = Read-Host (Get-Text "strategy_prompt")
         if (-not $selection) {
             return $profiles[0].Name
         }
@@ -499,7 +697,7 @@ function Select-MailanProfile {
                 Start-Process -FilePath $linksLauncher -WorkingDirectory $Root -WindowStyle Normal | Out-Null
             }
             else {
-                Write-Host "Official links launcher not found: $linksLauncher" -ForegroundColor Yellow
+                Write-Host (Get-Text "links_missing" @($linksLauncher)) -ForegroundColor Yellow
             }
             continue
         }
@@ -508,7 +706,7 @@ function Select-MailanProfile {
             return $profiles[$number - 1].Name
         }
 
-        Write-Host "Enter a number from 1 to $($profiles.Count)." -ForegroundColor Yellow
+        Write-Host (Get-Text "strategy_invalid" @($profiles.Count)) -ForegroundColor Yellow
     }
 }
 
@@ -611,10 +809,10 @@ function Show-Status {
     $process = Get-RunningProcess $pidFile
 
     if ($process) {
-        Write-Host "Profile '$Name' is running. PID: $($process.Id)"
+        Write-Host (Get-Text "profile_running" @($Name, $process.Id))
     }
     else {
-        Write-Host "Profile '$Name' is stopped."
+        Write-Host (Get-Text "profile_stopped" @($Name))
     }
 }
 
@@ -652,14 +850,14 @@ function Start-MailanZapret {
     $process = Start-Process -FilePath $binary -ArgumentList $argumentLine -WorkingDirectory $workingDirectory -WindowStyle Hidden -PassThru
     Set-Content -LiteralPath $pidFile -Value $process.Id -Encoding ASCII
     try {
-        [void](Start-KazakhstanProxyGateway -ParentPid $process.Id)
+        [void](Start-ConfiguredSiteProxyGateway -ParentPid $process.Id -SkipTelegramProxy:($Name -eq "telegram-ws"))
     }
     catch {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
         throw
     }
-    Write-Host "Started profile '$Name'. PID: $($process.Id)"
+    Write-Host (Get-Text "profile_started" @($Name, $process.Id))
 }
 
 function Start-MailanZapretConsole {
@@ -679,16 +877,16 @@ function Start-MailanZapretConsole {
 
     $otherWinws = @(Get-Process -Name "winws", "winws2" -ErrorAction SilentlyContinue)
     if ($otherWinws.Count -gt 0) {
-        Write-Host "Another Zapret process is already running. PID(s): $($otherWinws.Id -join ', ')" -ForegroundColor Yellow
-        Write-Host "Close its console before selecting another strategy."
+        Write-Host (Get-Text "other_running" @($otherWinws.Id -join ', ')) -ForegroundColor Yellow
+        Write-Host (Get-Text "close_other")
         return 1
     }
 
     Stop-WinDivertDriver
 
     if (-not (Test-IsAdministrator)) {
-        Write-Host "WARNING: this console is not running as Administrator." -ForegroundColor Yellow
-        Write-Host "Zapret/winws usually needs Administrator rights for WinDivert."
+        Write-Host (Get-Text "warning_admin") -ForegroundColor Yellow
+        Write-Host (Get-Text "warning_windivert")
         Write-Host ""
     }
 
@@ -696,9 +894,9 @@ function Start-MailanZapretConsole {
     $arguments = Get-ProfileArguments $Config $ProfileConfig
     $commandLine = ConvertTo-CommandLine -FilePath $binary -Arguments $arguments
 
-    Write-Host "Mailan Zapret console mode"
-    Write-Host "Profile: $Name"
-    Write-Host "Close this console to stop Zapret."
+    Write-Host (Get-Text "console_title")
+    Write-Host (Get-Text "console_profile" @($Name))
+    Write-Host (Get-Text "console_close")
     Write-Host ""
     Write-Host $commandLine
     Write-Host ""
@@ -706,21 +904,15 @@ function Start-MailanZapretConsole {
     $argumentLine = ConvertTo-ArgumentLine -Arguments $arguments
     $workingDirectory = Split-Path -Parent $binary
     $ipv4PolicyState = Enable-TemporaryIPv4Preference -Config $Config -ProfileConfig $ProfileConfig
-    if ($ipv4PolicyState) {
-        Write-Host "IPv4 is preferred while this console is open (Telegram compatibility)."
-    }
-    if (Get-Process -Name "browser" -ErrorAction SilentlyContinue) {
-        Write-Host "Yandex Browser is already running. Fully restart it with Ctrl+Shift+Q after Zapret starts." -ForegroundColor Yellow
-    }
-    if ($ipv4PolicyState) {
-        Write-Host ""
-    }
     $process = $null
     $kazakhstanProxyGateway = $null
     try {
         $process = Start-Process -FilePath $binary -ArgumentList $argumentLine -WorkingDirectory $workingDirectory -NoNewWindow -PassThru
         Set-Content -LiteralPath $pidFile -Value $process.Id -Encoding ASCII
-        $kazakhstanProxyGateway = Start-KazakhstanProxyGateway -ParentPid $process.Id
+        $kazakhstanProxyGateway = Start-ConfiguredSiteProxyGateway -ParentPid $process.Id -SkipTelegramProxy:($Name -eq "telegram-ws")
+        if ($Name -eq "telegram-ws") {
+            Write-Host (Get-Text "telegram_direct_route") -ForegroundColor Cyan
+        }
 
         $watcherScript = Join-Path $Root "scripts\watch-console.ps1"
         if (-not (Test-Path -LiteralPath $watcherScript)) {
@@ -834,6 +1026,14 @@ function Show-Doctor {
 }
 
 try {
+    if ($Command -eq "language") {
+        Select-MailanLanguage -Force
+        $savedKey = if ($Script:MailanLanguage -eq "ru") { "language_saved" } else { "language_saved_en" }
+        Write-Host (Get-Text $savedKey) -ForegroundColor Green
+        exit 0
+    }
+
+    Select-MailanLanguage
     if ($Command -eq "check-update") {
         $updateExitCode = Invoke-MailanUpdateCheck -Interactive -ShowErrors
         if ($updateExitCode -eq 10) { exit 0 }
@@ -877,6 +1077,21 @@ try {
         "proxy-stop" {
             Invoke-KazakhstanProxyCommand -ProxyCommand "stop"
         }
+        "telegram-proxy-setup" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "setup" -Mode "telegram"
+        }
+        "telegram-proxy-enable" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "enable" -Mode "telegram"
+        }
+        "telegram-proxy-disable" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "disable" -Mode "telegram"
+        }
+        "telegram-proxy-status" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "status" -Mode "telegram"
+        }
+        "telegram-proxy-stop" {
+            Invoke-KazakhstanProxyCommand -ProxyCommand "stop" -Mode "telegram"
+        }
         "console" {
             $exitCode = Start-MailanZapretConsole -Config $config -ProfileConfig $profileConfig -Name $Profile
             if ($null -ne $exitCode) {
@@ -913,6 +1128,6 @@ try {
 }
 catch {
     Write-Host ""
-    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host (Get-Text "error" @($_.Exception.Message)) -ForegroundColor Red
     exit 1
 }

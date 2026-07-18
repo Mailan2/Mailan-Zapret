@@ -1,0 +1,6 @@
+2026/07/18-12:26:41.120 4604 File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage is locked for recovering successfully
+2026/07/18-12:26:41.120 4604 Creating DB C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage since it was missing.
+2026/07/18-12:26:41.160 4604 Reusing MANIFEST C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage/MANIFEST-000001
+2026/07/18-12:27:52.639 21fc Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage, waiting for background work finished
+2026/07/18-12:27:52.639 21fc Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage, background work finished
+2026/07/18-12:27:52.640 21fc File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage unlocking error, msg = IO error: C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\telegram-browser-check\Default\Session Storage/LOCK: Could not unlock lock file. (ChromeMethodOnly: 16::UnlockFile)

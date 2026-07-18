@@ -27,6 +27,8 @@ namespace MailanZapret
         private readonly string[] allowedDomains;
         private readonly string pacPath;
         private readonly byte[] pacBytes;
+        private readonly string diagnosticLogPath;
+        private readonly object diagnosticLogLock = new object();
         private volatile bool running;
 
         public LocalSocksGateway(
@@ -34,7 +36,8 @@ namespace MailanZapret
             UpstreamProxy[] configuredUpstreams,
             string[] configuredDomains,
             string configuredPacPath,
-            string pacContent)
+            string pacContent,
+            string configuredDiagnosticLogPath)
         {
             if (configuredUpstreams == null || configuredUpstreams.Length == 0)
             {
@@ -50,6 +53,7 @@ namespace MailanZapret
             allowedDomains = configuredDomains;
             pacPath = configuredPacPath;
             pacBytes = Encoding.UTF8.GetBytes(pacContent);
+            diagnosticLogPath = configuredDiagnosticLogPath;
         }
 
         public void Start()
@@ -111,6 +115,7 @@ namespace MailanZapret
         {
             TcpClient client = (TcpClient)state;
             TcpClient upstream = null;
+            string destination = "unknown";
             try
             {
                 client.NoDelay = true;
@@ -128,6 +133,7 @@ namespace MailanZapret
 
                 if (IsPacRequest(request[0], request[1]))
                 {
+                    Log("PAC served");
                     SendPac(clientStream);
                     return;
                 }
@@ -150,14 +156,18 @@ namespace MailanZapret
                     host = requestUri.Host;
                     port = requestUri.Port;
                 }
+                destination = host + ":" + port.ToString(CultureInfo.InvariantCulture);
+                Log("REQUEST " + destination);
 
                 if (!IsAllowedHost(host))
                 {
+                    Log("DENY " + destination);
                     SendError(clientStream, 403, "This local proxy is limited to configured domains.");
                     return;
                 }
 
                 upstream = ConnectThroughSocks(host, port);
+                Log("CONNECTED " + destination);
                 NetworkStream upstreamStream = upstream.GetStream();
                 upstreamStream.ReadTimeout = 30000;
 
@@ -174,8 +184,9 @@ namespace MailanZapret
 
                 Relay(clientStream, upstreamStream);
             }
-            catch
+            catch (Exception error)
             {
+                Log("ERROR " + destination + " " + error.GetType().Name + " " + SanitizeLogText(error.GetBaseException().Message));
                 try
                 {
                     SendError(client.GetStream(), 502, "Unable to reach the upstream proxy.");
@@ -191,6 +202,28 @@ namespace MailanZapret
                     upstream.Close();
                 }
                 client.Close();
+            }
+        }
+
+        private void Log(string message)
+        {
+            if (string.IsNullOrWhiteSpace(diagnosticLogPath))
+            {
+                return;
+            }
+
+            try
+            {
+                lock (diagnosticLogLock)
+                {
+                    File.AppendAllText(
+                        diagnosticLogPath,
+                        DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + " " + message + Environment.NewLine,
+                        Encoding.UTF8);
+                }
+            }
+            catch
+            {
             }
         }
 
@@ -221,26 +254,34 @@ namespace MailanZapret
         private TcpClient ConnectThroughSocks(string destinationHost, int destinationPort)
         {
             Exception lastError = null;
-            for (int offset = 0; offset < upstreams.Length; offset++)
+            for (int attempt = 0; attempt < 2; attempt++)
             {
-                UpstreamProxy upstream = upstreams[offset];
-                TcpClient socket = null;
-                try
+                for (int offset = 0; offset < upstreams.Length; offset++)
                 {
-                    socket = ConnectTcp(upstream.Host, upstream.Port);
-                    socket.NoDelay = true;
-                    NetworkStream stream = socket.GetStream();
-                    stream.ReadTimeout = 15000;
-                    NegotiateSocks5(stream, upstream, destinationHost, destinationPort);
-                    return socket;
-                }
-                catch (Exception error)
-                {
-                    lastError = error;
-                    if (socket != null)
+                    UpstreamProxy upstream = upstreams[offset];
+                    TcpClient socket = null;
+                    try
                     {
-                        socket.Close();
+                        socket = ConnectTcp(upstream.Host, upstream.Port);
+                        socket.NoDelay = true;
+                        NetworkStream stream = socket.GetStream();
+                        stream.ReadTimeout = 15000;
+                        NegotiateSocks5(stream, upstream, destinationHost, destinationPort);
+                        return socket;
                     }
+                    catch (Exception error)
+                    {
+                        lastError = error;
+                        if (socket != null)
+                        {
+                            socket.Close();
+                        }
+                    }
+                }
+
+                if (attempt == 0)
+                {
+                    Thread.Sleep(250);
                 }
             }
 
@@ -464,6 +505,17 @@ namespace MailanZapret
             byte[] bytes = Encoding.ASCII.GetBytes(value);
             stream.Write(bytes, 0, bytes.Length);
             stream.Flush();
+        }
+
+        private static string SanitizeLogText(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "unknown";
+            }
+
+            string sanitized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return sanitized.Length > 160 ? sanitized.Substring(0, 160) : sanitized;
         }
 
         private static void SendError(NetworkStream stream, int status, string message)

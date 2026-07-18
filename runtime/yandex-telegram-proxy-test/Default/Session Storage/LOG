@@ -1,0 +1,5 @@
+2026/07/18-12:23:51.383 702c File C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\Session Storage is locked for recovering successfully
+2026/07/18-12:23:51.384 702c Creating DB C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\Session Storage since it was missing.
+2026/07/18-12:23:51.410 702c Reusing MANIFEST C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\Session Storage/MANIFEST-000001
+2026/07/18-12:24:19.648 701c Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\Session Storage, waiting for background work finished
+2026/07/18-12:24:19.648 701c Deletion DBImpl for C:\Users\Mailan1\Desktop\Mailan Zapret\runtime\yandex-telegram-proxy-test\Default\Session Storage, background work finished

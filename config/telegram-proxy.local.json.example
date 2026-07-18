@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "listener_port": 17892,
+  "domains": [
+    "telegram.org",
+    "t.me",
+    "telegram.me",
+    "telegram.dog",
+    "telegra.ph",
+    "telesco.pe",
+    "graph.org",
+    "tdesktop.com",
+    "telegram-cdn.org",
+    "telegramusercontent.com"
+  ],
+  "proxies": [
+    {
+      "host": "proxy.example",
+      "port": 1080,
+      "username": "your_username",
+      "password_protected": "created by telegram-proxy-setup"
+    }
+  ]
+}

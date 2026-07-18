@@ -21,6 +21,7 @@ handling.
 - `scripts\mailan-update.ps1` - HTTPS update check, download and verification.
 - `scripts\apply-update.ps1` - applies a verified update after Zapret exits.
 - `config\profiles.json` - profiles and winws arguments.
+- `config\translations.json` - Russian and English launcher text.
 - `config\version.json` - installed version and update endpoint.
 - `hostlists\youtube.txt` - common YouTube domains.
 - `hostlists\discord.txt` - common Discord domains.
@@ -39,10 +40,12 @@ handling.
 2. If this was downloaded from GitHub, the launcher restores its bundled winws and
    WinDivert files automatically on the first run.
 3. The launcher checks `Mailan1.ru` for a newer version and asks before downloading.
-4. Select a numbered bypass strategy. `fast` is the default; use `safe` only
-   if a service does not work with the faster profile. Press `B` for blockcheck.sh.
+4. Select Russian or English. The last choice is saved locally for that Windows user.
+5. Select a numbered bypass strategy. `safe` is the reliable default; `fast`
+   is available when the provider works correctly with lower packet repeats.
+   Press `B` for blockcheck.sh.
    Press `L` to open the verified official website directory.
-5. Keep the Zapret console open while using the selected strategy.
+6. Keep the Zapret console open while using the selected strategy.
 
 Closing that console stops Zapret.
 
@@ -50,6 +53,7 @@ You can also run commands manually from PowerShell or Command Prompt:
 
 ```powershell
 .\mailan-zapret.cmd doctor
+.\mailan-zapret.cmd language
 .\mailan-zapret.cmd bootstrap
 .\mailan-zapret.cmd proxy-setup
 .\mailan-zapret.cmd proxy-enable
@@ -80,7 +84,7 @@ background and stores a PID in `runtime\`.
 
 ## Kazakhstan site proxy
 
-`proxy-setup` creates a local, user-encrypted SOCKS5 configuration for the
+`proxy-setup` creates a local, machine-protected SOCKS5 configuration for the
 Kazakhstan site proxy. It is disabled by default and is not needed for users in
 Russia. It never stores credentials in tracked files or update archives. A
 Kazakhstan user can enable it with `proxy-enable`; while Zapret is running,
@@ -88,6 +92,11 @@ system-proxy browsers then use a local PAC rule that routes only Pornhub, its
 `phncdn.com` content domains, and Tor Project through `127.0.0.1`. All other
 traffic remains direct. `proxy-disable` turns this optional feature off and
 stops an already running Kazakhstan gateway.
+
+`telegram-proxy-setup` creates a separate Russia Telegram configuration. It
+routes only Telegram domains through its own local PAC gateway while Zapret is
+running. This browser route does not change the Telegram Desktop application's
+own proxy setting. Only one regional proxy can be enabled at a time.
 
 The local gateway accepts traffic only on `127.0.0.1` and only for those three
 domain families. It is stopped and the previous Windows proxy setting is
@@ -102,15 +111,30 @@ service hostlist. Telegram WebSocket domains receive the selected TLS bypass
 strategy, while Telegram's official IP ranges have a separate TCP profile for
 ports 80, 443, 5222 and 5223.
 
-The compatibility `safe` profile temporarily prefers IPv4. This avoids a
-broken IPv6 VPN route preventing Telegram Web from reaching its API servers.
-The fast profile leaves Windows network preference unchanged. The original
-prefix policy is restored when the console exits, including when the window is
-closed. The launcher does not restart or reconfigure VPN adapters,
+In addition to `safe`, `fast` and the official preset, the strategy menu offers
+three targeted fallback profiles: `hostfake` for fake-host TLS segmentation,
+`seqovl` for TLS sequence overlap, and `fakeddisorder` for reverse-order fake
+segmentation. Use one alternative at a time and keep the first profile that
+works reliably on the current provider. `blockcheck.sh` remains the preferred
+way to measure a provider instead of guessing.
+
+`telegram-ws` is a Telegram Web-specific profile. It handles only the Telegram
+hostlist, including `web.telegram.org`, `webk.telegram.org` and the `kws*.web.telegram.org`
+WebSocket endpoints. It is intended for the browser version of Telegram and
+does not route other listed services through the same stronger strategy. It
+intentionally bypasses the optional external Telegram SOCKS5 gateway so a
+provider-side SOCKS5 destination rejection cannot break Telegram Web.
+
+TGLock is a separate Telegram Desktop SOCKS5/WebSocket tool. It can complement
+Zapret for the native Telegram application, but it does not proxy the
+`web.telegram.org` browser page itself; keep it separate from this distribution
+unless its upstream binary is independently reviewed and obtained by the user.
+
+Profiles leave Windows network preference unchanged. The launcher does not
+restart or reconfigure VPN adapters,
 and never modifies the Windows HOSTS file or browser profiles. The optional
 Kazakhstan site proxy temporarily changes only the Windows automatic-proxy URL
-while Zapret is running. If Yandex Browser was already open, restart it with
-`Ctrl+Shift+Q` after starting Zapret so it picks up the current VPN route.
+while Zapret is running.
 
 To preview the exact command without starting anything:
 
