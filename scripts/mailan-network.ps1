@@ -314,8 +314,17 @@ function Test-NoActiveWinws {
 function Test-UrlReachability {
     param([Parameter(Mandatory)][string]$Url)
 
-    $status = & curl.exe --ipv4 --head --silent --show-error --location --connect-timeout 4 --max-time 8 --output NUL --write-out "%{http_code}" $Url 2>$null
-    $exitCode = $LASTEXITCODE
+    $status = "0"
+    $exitCode = 1
+    try {
+        $status = & curl.exe --ipv4 --head --silent --show-error --location --connect-timeout 4 --max-time 8 --output NUL --write-out "%{http_code}" $Url 2>$null
+        $exitCode = $LASTEXITCODE
+    }
+    catch {
+        # A connection timeout is a failed calibration result, not a launcher error.
+        $status = "0"
+        $exitCode = 1
+    }
     $statusCode = 0
     [void][int]::TryParse(([string]$status).Trim(), [ref]$statusCode)
     return [pscustomobject]@{
