@@ -5,7 +5,7 @@ param(
     [string]$Version,
 
     [string]$BaseUrl = "http://localhost:25589/zapret/download",
-    [string]$OutputDirectory = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "webic\storage\zapret-updates"),
+    [string]$OutputDirectory,
     [string]$Notes = "Mailan Zapret update $Version"
 )
 
@@ -14,6 +14,9 @@ $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RuntimeDirectory = Join-Path $Root "runtime"
+if (-not $OutputDirectory) {
+    $OutputDirectory = Join-Path (Split-Path -Parent $Root) "webic\storage\zapret-updates"
+}
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 $Utf8NoBom = New-Object Text.UTF8Encoding($false)
 $baseUri = $null
@@ -55,7 +58,7 @@ try {
         Copy-Item -LiteralPath $item.FullName -Destination $stagingPath -Recurse -Force
     }
 
-    foreach ($localConfigName in @("version.local.json", "kazakhstan-proxy.local.json", "telegram-proxy.local.json", "language.local.json")) {
+    foreach ($localConfigName in @("version.local.json", "kazakhstan-proxy.local.json", "telegram-proxy.local.json", "language.local.json", "network-selection.local.json")) {
         $localConfigCopy = Join-Path $stagingPath (Join-Path "config" $localConfigName)
         if (Test-Path -LiteralPath $localConfigCopy) {
             Remove-Item -LiteralPath $localConfigCopy -Force

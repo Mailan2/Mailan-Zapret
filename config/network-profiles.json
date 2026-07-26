@@ -1,0 +1,166 @@
+{
+  "binary": "bin\\winws.exe",
+  "capture_args": [
+    "--wf-tcp=80,443,5222,5223",
+    "--wf-udp=443",
+    "--wf-raw-part=@windivert_part.discord_media.txt",
+    "--wf-raw-part=@windivert_part.stun.txt",
+    "--wf-raw-part=@windivert_part.wireguard.txt",
+    "--wf-raw-part=@windivert_part.quic_initial_ietf.txt"
+  ],
+  "hostlists": [
+    "hostlists\\youtube.txt",
+    "hostlists\\discord.txt",
+    "hostlists\\facebook.txt",
+    "hostlists\\telegram.txt",
+    "hostlists\\services.txt",
+    "hostlists\\openai.txt",
+    "hostlists\\global-platforms.txt",
+    "hostlists\\vpn-services.txt"
+  ],
+  "targets": [
+    {
+      "id": "youtube",
+      "url": "https://www.youtube.com/generate_204",
+      "weight": 1
+    },
+    {
+      "id": "telegram",
+      "url": "https://web.telegram.org/",
+      "weight": 3
+    },
+    {
+      "id": "discord",
+      "url": "https://discord.com/api/v10/gateway",
+      "weight": 1
+    },
+    {
+      "id": "chatgpt",
+      "url": "https://chatgpt.com/",
+      "weight": 1
+    }
+  ],
+  "profiles": {
+    "balanced": {
+      "label": "Balanced",
+      "description": "Default balance of compatibility and speed.",
+      "segments": [
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "ipset",
+          "ipset": "bin\\telegram-cidr.txt",
+          "args": [
+            "--filter-tcp=80,443,5222,5223",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=5",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-any-protocol",
+            "--dpi-desync-cutoff=n3"
+          ]
+        }
+      ]
+    },
+    "compatibility": {
+      "label": "Compatibility",
+      "description": "More packet repeats for strict DPI.",
+      "segments": [
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,multidisorder",
+            "--dpi-desync-split-pos=1,midsld",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=badseq,md5sig",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "ipset",
+          "ipset": "bin\\telegram-cidr.txt",
+          "args": [
+            "--filter-tcp=80,443,5222,5223",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=5",
+            "--dpi-desync-repeats=6",
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-any-protocol",
+            "--dpi-desync-cutoff=n3"
+          ]
+        }
+      ]
+    },
+    "sni": {
+      "label": "SNI",
+      "description": "TLS host segmentation for SNI-focused DPI.",
+      "segments": [
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-tcp=443",
+            "--dpi-desync=fake,hostfakesplit",
+            "--dpi-desync-hostfakesplit-midhost=midsld",
+            "--dpi-desync-hostfakesplit-mod=altorder=1",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "hostlists",
+          "args": [
+            "--filter-l7=quic",
+            "--dpi-desync=fake",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin",
+            "--dpi-desync-cutoff=n3"
+          ]
+        },
+        {
+          "match": "ipset",
+          "ipset": "bin\\telegram-cidr.txt",
+          "args": [
+            "--filter-tcp=80,443,5222,5223",
+            "--dpi-desync=fake,multisplit",
+            "--dpi-desync-split-pos=5",
+            "--dpi-desync-repeats=4",
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-any-protocol",
+            "--dpi-desync-cutoff=n3"
+          ]
+        }
+      ]
+    }
+  }
+}

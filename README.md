@@ -17,10 +17,12 @@ handling.
 - `mailan-zapret.cmd` - console launcher.
 - `mailan-zapret-admin.cmd` - console launcher with Administrator prompt.
 - `mailan-official-links.cmd` - verified official website directory.
-- `scripts\mailan-zapret.ps1` - start, stop, status and diagnostics.
+- `scripts\mailan-network.ps1` - network calibration and the default launcher mode.
+- `scripts\mailan-zapret.ps1` - legacy profiles, blockcheck and diagnostics.
 - `scripts\mailan-update.ps1` - HTTPS update check, download and verification.
 - `scripts\apply-update.ps1` - applies a verified update after Zapret exits.
 - `config\profiles.json` - profiles and winws arguments.
+- `config\network-profiles.json` - isolated calibration profiles and HTTPS checks.
 - `config\translations.json` - Russian and English launcher text.
 - `config\version.json` - installed version and update endpoint.
 - `hostlists\youtube.txt` - common YouTube domains.
@@ -40,12 +42,12 @@ handling.
 2. If this was downloaded from GitHub, the launcher restores its bundled winws and
    WinDivert files automatically on the first run.
 3. The launcher checks `Mailan1.ru` for a newer version and asks before downloading.
-4. Select Russian or English. The last choice is saved locally for that Windows user.
-5. Select a numbered bypass strategy. `safe` is the reliable default; `fast`
-   is available when the provider works correctly with lower packet repeats.
-   Press `B` for blockcheck.sh.
-   Press `L` to open the verified official website directory.
-6. Keep the Zapret console open while using the selected strategy.
+4. The Network launcher detects whether the current connection has a saved
+   calibration. On a new network, select `Calibrate and start`.
+5. It starts three isolated WinDivert profiles in turn and checks HTTPS access
+   to YouTube, Telegram Web, Discord and ChatGPT. The highest scoring profile
+   is saved only for the current network fingerprint.
+6. Keep the Zapret console open while using the selected profile.
 
 Closing that console stops Zapret.
 
@@ -53,6 +55,10 @@ You can also run commands manually from PowerShell or Command Prompt:
 
 ```powershell
 .\mailan-zapret.cmd doctor
+.\mailan-zapret.cmd network status
+.\mailan-zapret.cmd network calibrate
+.\mailan-zapret.cmd network args -Profile balanced
+.\mailan-zapret.cmd network reset
 .\mailan-zapret.cmd language
 .\mailan-zapret.cmd bootstrap
 .\mailan-zapret.cmd proxy-setup
@@ -81,6 +87,20 @@ Restart it with:
 
 `console` runs winws in the current console window. `start` runs it in the
 background and stores a PID in `runtime\`.
+
+## Network Calibration
+
+The default launcher is designed for different providers and routes. It does
+not assume that a profile which works at one home network will work elsewhere.
+It keeps the selected profile in `config\network-selection.local.json`; this
+file stores a one-way fingerprint of the default route and DNS servers, never
+proxy credentials or browsing history, and is excluded from updates.
+
+Calibration temporarily starts one profile at a time, performs only HTTPS HEAD
+connectivity checks to the listed public targets, stops that profile, then starts
+the selected profile in the visible console. If no candidate reaches a service,
+run the official `blockcheck` command from the legacy menu instead of assuming a
+single universal setting exists.
 
 ## Kazakhstan site proxy
 

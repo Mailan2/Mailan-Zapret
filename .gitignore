@@ -6,4 +6,5 @@ config/version.local.json
 config/kazakhstan-proxy.local.json
 config/telegram-proxy.local.json
 config/language.local.json
+config/network-selection.local.json
 runtime/kazakhstan-proxy-*

@@ -108,11 +108,28 @@
         }
       ]
     },
+    "telegram": {
+      "description": "Telegram Desktop MTProto with a single dedicated CIDR profile.",
+      "hostlists": [],
+      "apply_exclusions": false,
+      "tail_segments": [],
+      "args": [
+        "--filter-tcp=80,443,5222,5223",
+        "--ipset=telegram-cidr.txt",
+        "--dpi-desync=fake,multisplit",
+        "--dpi-desync-split-pos=5",
+        "--dpi-desync-repeats=6",
+        "--dpi-desync-fooling=badseq",
+        "--dpi-desync-any-protocol",
+        "--dpi-desync-cutoff=n3"
+      ]
+    },
     "telegram-ws": {
       "description": "Telegram Web and WebSocket-only compatibility profile.",
       "hostlists": [
         "hostlists\\telegram.txt"
       ],
+      "tail_segments": [],
       "segments": [
         {
           "args": [
@@ -121,15 +138,8 @@
             "--dpi-desync-hostfakesplit-midhost=midsld",
             "--dpi-desync-hostfakesplit-mod=altorder=1",
             "--dpi-desync-repeats=6",
-            "--dpi-desync-fooling=badseq"
-          ]
-        },
-        {
-          "args": [
-            "--filter-l7=quic",
-            "--dpi-desync=fake",
-            "--dpi-desync-repeats=6",
-            "--dpi-desync-fake-quic=quic_initial_www_google_com.bin"
+            "--dpi-desync-fooling=badseq",
+            "--dpi-desync-cutoff=n3"
           ]
         }
       ]

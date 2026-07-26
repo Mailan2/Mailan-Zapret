@@ -565,8 +565,13 @@ function Get-ProfileArguments {
     $excludedHostlists = if ($excludedHostlistsProperty) { @($excludedHostlistsProperty.Value) } else { @() }
     $excludedIpsetsProperty = $Config.PSObject.Properties["excluded_ipsets"]
     $excludedIpsets = if ($excludedIpsetsProperty) { @($excludedIpsetsProperty.Value) } else { @() }
+    $applyExclusionsProperty = $ProfileConfig.PSObject.Properties["apply_exclusions"]
+    $applyExclusions = if ($applyExclusionsProperty) { [bool]$applyExclusionsProperty.Value } else { $true }
 
     function Add-ProfileExclusions {
+        if (-not $applyExclusions) {
+            return
+        }
         foreach ($hostlist in $excludedHostlists) {
             $hostlistPath = Resolve-ProjectPath ([string]$hostlist)
             if (-not (Test-Path -LiteralPath $hostlistPath)) {
@@ -664,7 +669,7 @@ function Select-MailanProfile {
     param([Parameter(Mandatory)]$Config)
 
     $profileProperties = $Config.profiles.PSObject.Properties
-    $preferredNames = @("safe", "telegram-ws", "fast", "official", "multisplit", "multidisorder", "fakedsplit", "hostfake", "seqovl", "fakeddisorder")
+    $preferredNames = @("safe", "telegram", "telegram-ws", "fast", "official", "multisplit", "multidisorder", "fakedsplit", "hostfake", "seqovl", "fakeddisorder")
     $profiles = New-Object System.Collections.Generic.List[object]
     foreach ($name in $preferredNames) {
         $profile = $profileProperties[$name]
